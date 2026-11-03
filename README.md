@@ -7,6 +7,12 @@ Three.js/2D, ba chiến lược, backtest và tài khoản **paper**.
 **Bắt đầu tại [HƯỚNG DẪN CLOUD](docs/CLOUD_DEPLOY.md).** Toàn bộ thao tác cài
 đặt chạy trên máy chủ qua web console của nhà cung cấp, không phải trên PC.
 
+**Chỉ dùng một mình, không mua tên miền:** chọn
+[truy cập riêng bằng Tailscale](docs/PRIVATE_ACCESS.md) với
+`compose.private.yaml`. Backend chỉ mở loopback VPS, HTTPS do Tailscale
+Serve cung cấp; vẫn giữ đăng nhập và CSRF. Phương án này cần Tailscale trên
+thiết bị truy cập và VPS, không bật Funnel/public website.
+
 ## Phạm vi bản giao
 
 | Giai đoạn | Mã nguồn có trong bản này | Bằng chứng / giới hạn |

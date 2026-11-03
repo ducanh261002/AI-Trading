@@ -3,6 +3,9 @@
 Source, tests, deploy và tài liệu; không liệt kê venv, DB hoặc secret files.
 
 ```text
+compose.private.yaml
+deploy/private.env.example
+docs/PRIVATE_ACCESS.md
 .dockerignore
 .env.example
 .gitignore

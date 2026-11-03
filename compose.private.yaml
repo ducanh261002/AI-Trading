@@ -1,0 +1,31 @@
+# Private deployment: run Tailscale Serve on the VPS host, not in this container.
+services:
+  web:
+    build: .
+    image: ai-trading-web:latest
+    restart: unless-stopped
+    env_file: .env.private
+    environment:
+      ATC_HOSTED: "true"
+      ATC_DATABASE_PATH: /app/data/command_center.sqlite3
+      ATC_OLLAMA_ENABLED: "false"
+    ports:
+      - "127.0.0.1:8080:8000"
+    volumes:
+      - trading_data:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 768m
+    cpus: 1.0
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+volumes:
+  trading_data:
