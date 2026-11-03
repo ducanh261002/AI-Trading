@@ -3,6 +3,11 @@
 Source, tests, deploy và tài liệu; không liệt kê venv, DB hoặc secret files.
 
 ```text
+CAI_DAT_WINDOWS.cmd
+MO_WEBSITE.cmd
+scripts/windows.py
+tests/test_windows_helper.py
+docs/WINDOWS_LOCAL.md
 compose.private.yaml
 deploy/private.env.example
 docs/PRIVATE_ACCESS.md

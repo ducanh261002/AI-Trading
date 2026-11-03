@@ -5,10 +5,14 @@ không là chứng nhận hệ thống giao dịch tiền thật.
 
 ## Đã thực hiện
 
-- Bộ test Python: 34 bài, gồm hồi quy Foundation/Market/Agents và các test
+- Bộ test Python: 38 bài, gồm hồi quy Foundation/Market/Agents và các test
   mới cho indicators, strategy HOLD/warmup, risk rejects, sizing/costs,
   stop-first/next-open/holdout, paper dedup/close/ledger/restart, backup,
   hosted login/cookies/CSRF/rate-limit, Testnet signing/UNKNOWN/reconcile.
+- Bổ sung helper Windows: bảo toàn `.env`, không đánh dấu setup thành công
+  khi pip thất bại, phát hiện lockfile thay đổi, từ chối port đang bận và
+  kiểm tra HTTP startup/cleanup đúng process. Logic chạy trong Linux; file
+  CMD và setup trên Windows thực vẫn cần chủ máy kiểm tra.
 - HTTP workflow: backend local, tạo chu kỳ 16 Agent, không duplicate cùng
   key, Risk/Execution bị chặn mặc định và `/api/orders` trả 403.
 - Chromium: desktop 1440px, mobile 390px, 16 Agent cards, chu kỳ từ UI,

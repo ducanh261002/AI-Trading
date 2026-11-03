@@ -1,5 +1,6 @@
 .git
 .venv
+.venv-windows
 .env
 .env.*
 data

@@ -1,10 +1,15 @@
-# AI Trading Command Center — Private Cloud Website
+# AI Trading Command Center — Website cá nhân
 
-Website tự lưu trữ: mở bằng trình duyệt, không cần cài ứng dụng Windows.
+Giao diện mở bằng trình duyệt; backend chạy trên máy Windows sẵn có hoặc cloud.
 Backend FastAPI + SQLite, 16 vai trò Agent chạy trong một worker, dashboard
 Three.js/2D, ba chiến lược, backtest và tài khoản **paper**.
 
-**Bắt đầu tại [HƯỚNG DẪN CLOUD](docs/CLOUD_DEPLOY.md).** Toàn bộ thao tác cài
+**Không mua VPS/tên miền — dùng máy Windows đang có:** xem
+[hướng dẫn Windows từng bước](docs/WINDOWS_LOCAL.md). Cài Python một lần,
+chạy `CAI_DAT_WINDOWS.cmd` rồi `MO_WEBSITE.cmd`; giao diện mở bằng trình
+duyệt. Máy phải bật và không sleep. Không cần DigitalOcean hoặc Docker.
+
+**Nếu chọn thuê máy chủ:** bắt đầu tại [HƯỚNG DẪN CLOUD](docs/CLOUD_DEPLOY.md). Toàn bộ thao tác cài
 đặt chạy trên máy chủ qua web console của nhà cung cấp, không phải trên PC.
 
 **Chỉ dùng một mình, không mua tên miền:** chọn
@@ -30,6 +35,9 @@ paper. `/api/orders` luôn từ chối. Không thể coi phase 5 đã nghiệm t
 vì code adapter hoặc mock tests đạt. Không có cam kết lợi nhuận.
 
 ## Kiến trúc
+
+Sơ đồ dưới là phương án cloud. Chạy trên PC thì trình duyệt nối trực tiếp
+FastAPI tại loopback, không cần Caddy hoặc Docker.
 
 ```mermaid
 flowchart LR
