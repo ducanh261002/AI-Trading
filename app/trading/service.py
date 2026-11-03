@@ -1,0 +1,121 @@
+import asyncio
+import json
+import sqlite3
+import threading
+from contextlib import suppress
+from datetime import datetime, timezone, timedelta
+from pathlib import Path
+from uuid import uuid4
+
+from app.db import now
+from app.trading.backtest import run_backtest
+from app.trading.paper import PaperBroker
+from app.trading.strategies import STRATEGIES, choose, evaluate
+
+
+class TradingService:
+    def __init__(self, settings, database, market):
+        self.settings, self.database, self.market = settings, database, market
+        self.paper = PaperBroker(settings, database, market)
+        self.task = None
+        self.maintenance_task = None
+        self.maintenance_lock = threading.Lock()
+
+    async def start(self):
+        self.paper.initialize()
+        self.task = asyncio.create_task(self.run(), name="paper-and-reports")
+
+    async def stop(self):
+        if self.task:
+            self.task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self.task
+        if self.maintenance_task:
+            with suppress(Exception):
+                await self.maintenance_task
+
+    def proposal(self, symbol, interval):
+        rows = self.market.store.read(symbol, interval)
+        proposal = choose(rows) if self.settings.strategy == "consensus" else evaluate(rows, self.settings.strategy)
+        return {**proposal, "symbol": symbol, "interval": interval}
+
+    def backtest(self, symbol, interval, strategy):
+        rows = self.market.store.read(symbol, interval)
+        result = run_backtest(rows, strategy, self.settings)
+        identifier = str(uuid4())
+        with self.database.connect() as con:
+            con.execute("INSERT INTO backtest_results VALUES(?,?,?,?,?)", (identifier, now(), symbol, interval, json.dumps(result)))
+            con.execute("DELETE FROM backtest_results WHERE rowid NOT IN (SELECT rowid FROM backtest_results ORDER BY rowid DESC LIMIT 100)")
+        return {"id": identifier, **result}
+
+    def reports(self):
+        with self.database.connect() as con:
+            return [{**dict(row), "payload": json.loads(row["payload"])} for row in con.execute("SELECT * FROM scheduled_reports ORDER BY created_at DESC LIMIT 30")]
+
+    def maintenance(self):
+        with self.maintenance_lock:
+            self._maintenance()
+
+    def _maintenance(self):
+        local = datetime.now(timezone(timedelta(hours=7)))
+        periods = {"hour": local.strftime("%Y-%m-%dT%H"), "day": local.strftime("%Y-%m-%d"), "week": local.strftime("%G-W%V")}
+        for period, key in periods.items():
+            identifier = period + ":" + key
+            start = local.replace(minute=0, second=0, microsecond=0) if period == "hour" else local.replace(hour=0, minute=0, second=0, microsecond=0)
+            if period == "week":
+                start -= timedelta(days=start.weekday())
+            start_utc = start.astimezone(timezone.utc).isoformat()
+            with self.database.connect() as con:
+                entries = [dict(row) for row in con.execute("SELECT kind,amount FROM paper_ledger WHERE created_at>=?", (start_utc,))]
+            performance = self.paper.performance()
+            performance.pop("closed_trades", None)
+            summary = {"as_of": now(), "timezone": "Asia/Ho_Chi_Minh", "portfolio": self.paper.portfolio(),
+                       "performance": performance, "period": period,
+                       "period_start": start_utc, "period_net_cash_change": sum(row["amount"] for row in entries),
+                       "period_fees": -sum(row["amount"] for row in entries if row["kind"] in {"ENTRY_FEE", "EXIT_FEE"}),
+                       "period_funding_cash_change": sum(row["amount"] for row in entries if row["kind"] == "FUNDING"),
+                       "scope": "Running period-to-date paper ledger plus current portfolio snapshot"}
+            with self.database.connect() as con:
+                con.execute("INSERT INTO scheduled_reports VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET created_at=excluded.created_at,payload=excluded.payload", (identifier, now(), period, json.dumps(summary)))
+        backup_dir = self.settings.database_path.parent / "backups"
+        backup_dir.mkdir(exist_ok=True, parents=True)
+        target = backup_dir / (local.strftime("%Y-%m-%d") + ".sqlite3")
+        if not target.exists():
+            temporary = target.with_suffix(".tmp")
+            with sqlite3.connect(self.settings.database_path) as source, sqlite3.connect(temporary) as destination:
+                source.backup(destination)
+                if destination.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+                    raise RuntimeError("Backup verification failed")
+            temporary.replace(target)
+        for old in sorted(backup_dir.glob("*.sqlite3"))[:-7]:
+            old.unlink()
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        with self.database.connect() as con:
+            con.execute("DELETE FROM events WHERE created_at < ?", (cutoff,))
+            con.execute("DELETE FROM tasks WHERE run_id IN (SELECT id FROM agent_runs WHERE finished_at < ?)", (cutoff,))
+            con.execute("DELETE FROM agent_runs WHERE finished_at < ?", (cutoff,))
+            con.execute("DELETE FROM tasks WHERE run_id IS NULL AND finished_at < ?", (cutoff,))
+            con.execute("DELETE FROM auth_sessions WHERE expires_at < ?", (int(datetime.now(timezone.utc).timestamp()),))
+
+    async def run(self):
+        ticks = 0
+        while True:
+            try:
+                if self.settings.market_enabled and not self.market.snapshot()["connected"] and not self.database.halted():
+                    self.database.halt()
+                self.paper.update_positions()
+                if self.settings.paper_auto and not self.database.halted():
+                    for symbol in self.market.symbols:
+                        self.paper.enter(self.proposal(symbol, "5m"))
+                if ticks % 12 == 0:
+                    # SQLite backup may take time; do it outside the market event loop.
+                    self.maintenance_task = asyncio.create_task(asyncio.to_thread(self.maintenance))
+                    await asyncio.shield(self.maintenance_task)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                self.database.halt()
+                with self.database.connect() as con:
+                    con.execute("INSERT INTO events(created_at,level,message) VALUES(?,'ERROR','Paper/maintenance error; new entries halted')", (now(),))
+            ticks += 1
+            await asyncio.sleep(5)
