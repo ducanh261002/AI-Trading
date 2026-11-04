@@ -90,3 +90,9 @@ Mã nguồn từng file nằm nguyên vẹn trong ZIP; không có function TODO 
 
 - `app/static/workbench.js`, `workbench.css`: đội ngũ, bàn làm việc, dependency graph, chọn chu kỳ và đọc bằng chứng.
 - `docs/images/agent-office.png`: ảnh xem trước đã ghi rõ dữ liệu fixture.
+
+- `app/orchestration/live.py`: chỉ thị, hộp thư có bằng chứng, theo dõi định kỳ, kết nối model, đánh giá cải tiến.
+- `app/static/collaboration.js`, `collaboration.css`: giao việc/AI/PAPER, phòng trao đổi và cập nhật theo dõi.
+- `CAI_AI_WINDOWS.cmd`: hướng dẫn cài Ollama và tải model local trên Windows.
+- `docs/AI_TRADING_CENTER.md`: cách dùng và giới hạn tự động hóa.
+- `tests/test_collaboration.py`: kiểm thử phối hợp, model và PAPER autopilot.

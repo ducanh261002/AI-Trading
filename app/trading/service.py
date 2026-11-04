@@ -18,6 +18,13 @@ class TradingService:
     def __init__(self, settings, database, market):
         self.settings, self.database, self.market = settings, database, market
         self.paper = PaperBroker(settings, database, market)
+        self.autopilot_enabled = False
+        self.autopilot_interval = '5m'
+        self.autopilot_symbols = list(market.symbols)
+        self.autopilot_results = []
+        self.autopilot_checked_at = None
+        self.on_paper_event = None
+        self.last_autopilot_messages = {}
         self.task = None
         self.maintenance_task = None
         self.maintenance_lock = threading.Lock()
@@ -112,6 +119,62 @@ class TradingService:
             con.execute("DELETE FROM tasks WHERE run_id IS NULL AND finished_at < ?", (cutoff,))
             con.execute("DELETE FROM auth_sessions WHERE expires_at < ?", (int(datetime.now(timezone.utc).timestamp()),))
 
+    def configure_autopilot(self, enabled, symbols=None, interval='5m'):
+        if not enabled:
+            self.autopilot_enabled = False
+            self.paper.autopilot_allowed = False
+            self.database.halt()
+            return self.autopilot_status()
+        snapshot = self.market.snapshot()
+        chosen = symbols or self.market.symbols
+        if not snapshot['connected'] or any(not next(r for r in snapshot['symbols'] if r['symbol']==s).get('fresh') for s in chosen):
+            raise ValueError('PAPER cần dữ liệu Binance LIVE mới để khởi động')
+        portfolio = self.paper.portfolio()
+        if portfolio['drawdown'] >= self.settings.max_drawdown or portfolio['daily_pnl'] <= -portfolio['day_start_equity']*self.settings.daily_loss_limit:
+            raise ValueError('Giới hạn lỗ/drawdown đã chạm; không khởi động PAPER')
+        self.autopilot_symbols = list(chosen)
+        self.autopilot_interval = interval
+        self.autopilot_enabled = True
+        self.paper.autopilot_allowed = True
+        with self.database.connect() as con:
+            con.execute('UPDATE safety SET halted=0,updated_at=? WHERE id=1',(now(),))
+        try:
+            self.autopilot_tick()
+        except Exception:
+            self.autopilot_enabled=False
+            self.paper.autopilot_allowed=False
+            self.database.halt()
+            raise ValueError('Không khởi động được PAPER; đã khóa mở lệnh') from None
+        return self.autopilot_status()
+
+    def autopilot_tick(self):
+        if not self.autopilot_enabled:
+            return
+        self.autopilot_checked_at = now()
+        if self.database.halted():
+            self.autopilot_results = [{'symbol':s,'sent':False,'reasons':['Kill Switch / kiểm soát rủi ro đang chặn']} for s in self.autopilot_symbols]
+            return
+        results=[]
+        for symbol in self.autopilot_symbols:
+            proposal=self.proposal(symbol,self.autopilot_interval)
+            outcome=self.paper.enter(proposal,autopilot=True)
+            row={'symbol':symbol,'signal':proposal.get('signal','HOLD'),'sent':bool(outcome.get('sent')),
+                 'reasons':outcome.get('reasons') or ([outcome['reason']] if outcome.get('reason') else [])}
+            results.append(row)
+            signature=json.dumps(row,sort_keys=True)
+            if self.on_paper_event and signature!=self.last_autopilot_messages.get(symbol):
+                body=(f"PAPER {symbol}: đã ghi nhận lệnh mô phỏng." if row['sent'] else f"PAPER {symbol}: {row['signal']}; "+'; '.join(row['reasons']))
+                self.on_paper_event('execution','portfolio','paper',body)
+                self.last_autopilot_messages[symbol]=signature
+        self.autopilot_results=results
+
+    def autopilot_status(self):
+        return {'enabled':self.autopilot_enabled,'mode':'PAPER','halted':self.database.halted(),
+                'symbols':self.autopilot_symbols,'interval':self.autopilot_interval,
+                'checked_at':self.autopilot_checked_at,'results':self.autopilot_results,
+                'exchange_execution_available':False,
+                'restart_policy':'Khởi động lại chương trình sẽ khóa PAPER; bấm khởi động để bật lại.'}
+
     async def run(self):
         ticks = 0
         while True:
@@ -119,6 +182,7 @@ class TradingService:
                 if self.settings.market_enabled and not self.market.snapshot()["connected"] and not self.database.halted():
                     self.database.halt()
                 self.paper.update_positions()
+                self.autopilot_tick()
                 if self.settings.paper_auto and not self.settings.observer_mode and not self.database.halted():
                     for symbol in self.market.symbols:
                         self.paper.enter(self.proposal(symbol, "5m"))

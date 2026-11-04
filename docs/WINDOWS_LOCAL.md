@@ -91,3 +91,10 @@ Logic helper và HTTP startup/shutdown có thể kiểm tra trong môi trường
 Linux phát triển, nhưng file `.cmd`, Windows launcher, Microsoft Store/
 winget và browser mặc định Windows chưa được thực thi trên PC của bạn.
 Chỉ xác nhận Windows thành công khi bạn chạy và thấy website hoạt động.
+
+## Agent liên tục và giao dịch PAPER tự động
+
+Xem [AI Trading Center](AI_TRADING_CENTER.md). Trang chính có **Giao việc cho CEO**,
+**Trao đổi**, **Kết nối AI** và nút **PAPER tự động**. Công cụ theo dõi mỗi 15 giây;
+model thật cần Ollama/model đã cài, hỗ trợ qua `CAI_AI_WINDOWS.cmd`. Chạy lại web
+không cần cài lại Python. PAPER phải được bật bằng nút; không có lệnh tiền thật.

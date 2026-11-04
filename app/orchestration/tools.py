@@ -148,7 +148,8 @@ class Tools:
         rows = self.candles(task)
         if len(rows) < 60:
             return waiting("At least 60 closed candles needed for strategy warmup", actionable=False)
-        return completed(proposals=[evaluate(rows, strategy) for strategy in STRATEGIES],
+        return completed(backtest_evidence=(task.get("context", {}).get("backtest") or {}).get("task_id"),
+                         proposals=[evaluate(rows, strategy) for strategy in STRATEGIES],
                          actionable=snapshot["connected"] and row["fresh"], paper_only=True)
 
     async def signal(self, task):
@@ -184,6 +185,9 @@ class Tools:
         rows = self.candles(task)
         if len(rows) < 120:
             return waiting("At least 120 closed candles needed for backtest")
+        quality = (task.get('context', {}).get('data') or {}).get('result') or {}
+        if quality.get('gaps', 0):
+            return waiting("Backtest blocked by Data Agent: candle gaps detected")
         results = []
         for strategy in STRATEGIES:
             job = asyncio.create_task(asyncio.to_thread(self.trading.backtest, **task["input"], strategy=strategy, rows=rows))

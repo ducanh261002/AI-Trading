@@ -5,7 +5,7 @@ không là chứng nhận hệ thống giao dịch tiền thật.
 
 ## Đã thực hiện
 
-- Bộ test Python: 49 bài, gồm hồi quy Foundation/Market/Agents và các test
+- Bộ test Python: 54 bài, gồm hồi quy Foundation/Market/Agents và các test
   mới cho indicators, strategy HOLD/warmup, risk rejects, sizing/costs,
   stop-first/next-open/holdout, paper dedup/close/ledger/restart, backup,
   hosted login/cookies/CSRF/rate-limit, Testnet signing/UNKNOWN/reconcile.
@@ -86,10 +86,21 @@ không có lỗi JavaScript. Evidence cục bộ: `artifacts/observer-verificati
 
 ## Văn phòng vận hành theo video tham khảo
 
-49 tests: thêm đối chiếu số liệu backtest/chỉ báo với task đã lưu, dependency
+54 tests: thêm đối chiếu số liệu backtest/chỉ báo với task đã lưu, dependency
 thật, progress/cảnh báo, trường kết quả allowlist và xác thực API chu kỳ hosted.
 Chromium kiểm tra sidebar 16 Agent, tìm theo RSI, lọc việc đang xử lý, bàn kết quả
 ba chiến lược, sơ đồ 16 nút/17 cạnh, chọn chu kỳ cũ, 2D fallback, điện thoại
 390px không tràn ngang và mất kết nối. Không có lỗi JavaScript.
 Ảnh/video nguồn không được nhúng vào sản phẩm; ảnh README là UI của dự án
 với dữ liệu kiểm thử và nhãn fixture. Evidence cục bộ ở `artifacts/workbench-verification.json`.
+
+## Collaboration / PAPER autopilot
+
+54 tests đạt. Bổ sung mission lưu qua restart, dependency receipts và ID đầu vào
+thật; theo dõi giá mới không chạy backtest trùng; mô hình local dùng nhận xét trước
+nhưng không có tools; PAPER mở vị thế qua risk, không trùng, Kill Switch chặn và
+restart không tự bật. Nhận xét AI được kiểm thử bằng HTTP mock, chưa xác nhận tốc độ
+model trên máy Windows người dùng.
+Chromium fixture: giao nhiệm vụ, bàn giao/receipt, 16 quan sát, cập nhật sau nhịp
+15 giây, model chưa có hiện đúng thông báo, bật/dừng PAPER và điện thoại không tràn.
+Không có lỗi JavaScript; chưa thử cài model thật trên máy người dùng.

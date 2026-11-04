@@ -32,6 +32,27 @@ class CycleRequest(MarketRequest):
     analysis_only: bool = True
 
 
+class MissionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    objective: str = Field(min_length=8, max_length=500)
+    symbols: list[str] = Field(min_length=1, max_length=5)
+    interval: Literal["5m", "15m", "1h", "4h"] = "5m"
+
+
+class AutopilotRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool
+    paper_only: Literal[True] = True
+    symbols: list[str] | None = Field(default=None, min_length=1, max_length=5)
+    interval: Literal["5m", "15m", "1h", "4h"] = "5m"
+
+
+class ModelConnection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool = True
+    model: str = Field(default="qwen2.5:3b", min_length=1, max_length=80, pattern=r"^[A-Za-z0-9_.:/-]+$")
+
+
 class ResearchControl(BaseModel):
     model_config = ConfigDict(extra="forbid")
     enabled: bool
@@ -45,6 +66,7 @@ def create_app(settings: Settings | None = None):
     trading = TradingService(settings, database, market)
     auth = Auth(settings, database)
     coordinator = Coordinator(settings, database, market, trading)
+    trading.on_paper_event = coordinator.live.message
 
     @asynccontextmanager
     async def lifespan(app):
@@ -104,7 +126,7 @@ def create_app(settings: Settings | None = None):
     @app.get("/api/status")
     async def status():
         return {"phase": 7, "mode": settings.mode, "halted": database.halted(), "execution_available": False,
-                "paper_auto": settings.paper_auto and not settings.observer_mode, "observer_mode": settings.observer_mode, "hosted": settings.hosted,
+                "paper_autopilot": trading.autopilot_enabled, "paper_auto": settings.paper_auto and not settings.observer_mode, "observer_mode": settings.observer_mode, "hosted": settings.hosted,
                 "market_connected": market.snapshot()["connected"], "llm_connected": False,
                 "ollama_enabled": settings.ollama_enabled, "ollama_last_request_ok": coordinator.summary.available,
                 "agents_running": coordinator.running and coordinator.worker is not None and not coordinator.worker.done(),
@@ -120,6 +142,43 @@ def create_app(settings: Settings | None = None):
         if result is None:
             raise HTTPException(404, "Cycle not found")
         return result
+
+    @app.get("/api/autopilot")
+    async def autopilot_status():
+        return trading.autopilot_status()
+
+    @app.post("/api/autopilot")
+    async def autopilot_control(body: AutopilotRequest):
+        symbols = body.symbols or coordinator.live.symbols()
+        if len(set(symbols))!=len(symbols) or any(s not in market.symbols for s in symbols):
+            raise HTTPException(422, "Choose configured symbols only")
+        try:
+            result = trading.configure_autopilot(body.enabled,symbols,body.interval)
+        except ValueError as exc:
+            raise HTTPException(409,str(exc)) from exc
+        coordinator.live.next_check = 0
+        coordinator.live.message('user','execution','paper','Đã '+('khởi động' if body.enabled else 'dừng')+' PAPER tự động. Không có lệnh tiền thật.')
+        return result
+
+    @app.post("/api/missions", status_code=202)
+    async def assign_mission(body: MissionRequest):
+        if not coordinator.running:
+            raise HTTPException(409, "Agent worker offline")
+        if len(body.objective.strip()) < 8:
+            raise HTTPException(422, "Objective must contain at least 8 non-space characters")
+        if len(set(body.symbols)) != len(body.symbols) or any(s not in market.symbols for s in body.symbols):
+            raise HTTPException(422, "Choose configured symbols only")
+        return coordinator.live.assign(body.objective.strip(),body.symbols,body.interval)
+
+    @app.post("/api/agents/model")
+    async def connect_model(body: ModelConnection):
+        await coordinator.live.stop()
+        settings.ollama_enabled = body.enabled
+        settings.ollama_model = body.model
+        coordinator.live.save_model()
+        await coordinator.live.discover_model()
+        coordinator.live.next_model_probe = 0
+        return {"ready":coordinator.live.model_ready,"message":coordinator.live.model_state,"model":settings.ollama_model}
 
     @app.get("/api/agents")
     async def agents():
@@ -184,6 +243,7 @@ def create_app(settings: Settings | None = None):
 
     @app.post("/api/kill-switch")
     def kill_switch():
+        trading.configure_autopilot(False)
         database.halt()
         return {"halted": True, "execution_available": False}
 
@@ -262,6 +322,14 @@ def create_app(settings: Settings | None = None):
     @app.get("/login.js", include_in_schema=False)
     def login_script():
         return FileResponse(static / "login.js", media_type="text/javascript")
+
+    @app.get("/collaboration.js", include_in_schema=False)
+    def collaboration_script():
+        return FileResponse(static / "collaboration.js", media_type="text/javascript")
+
+    @app.get("/collaboration.css", include_in_schema=False)
+    def collaboration_style():
+        return FileResponse(static / "collaboration.css", media_type="text/css")
 
     @app.get("/workbench.js", include_in_schema=False)
     def workbench_script():

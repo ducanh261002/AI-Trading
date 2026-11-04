@@ -1,16 +1,20 @@
 # AI Trading Command Center — Website cá nhân
 
-**Trang chính là văn phòng 3D để bạn quan sát:** 16 bàn Agent hiển thị nhiệm vụ thật.
-CEO tự giao việc khi có nến đóng mới; Backtest Agent tự kiểm thử ba chiến lược,
-Report Agent tự báo cáo. Không cần bấm từng backtest. Xem
-[hướng dẫn chế độ quan sát](docs/OBSERVER_MODE.md).
-Chế độ mặc định không mở vị thế mới hoặc gửi lệnh thật.
+**Trading Center với phối hợp Agent, theo dõi liên tục và PAPER tự động.**
+Xem [hướng dẫn AI Trading Center](docs/AI_TRADING_CENTER.md).
 
-![Văn phòng Agent 3D với đội ngũ bên trái và kết quả nhiệm vụ bên phải](docs/images/agent-office.png)
+- **Giao việc cho CEO**, đọc **Trao đổi** và xem các lần chuyển/nhận bằng chứng.
+- Theo dõi giá, chỉ báo và risk mỗi 15 giây; nghiên cứu nến mới, backtest và báo cáo.
+- **Khởi động PAPER tự động** để mô phỏng giao dịch sau kiểm tra risk. Không có lệnh tiền thật.
+- **Kết nối AI** với Ollama để có nhận xét mô hình thật. Chưa kết nối thì chỉ chạy công cụ Python,
+  không giả là AI đang suy nghĩ. Windows có file hỗ trợ **CAI_AI_WINDOWS.cmd**.
+- Lưu đánh giá cải tiến chiến lược; chưa tự sửa và triển khai code.
 
-Ảnh xem trước dùng dữ liệu kiểm thử. Giao diện có ba góc xem: **Văn phòng 3D**,
-**Luồng giao việc** và **Kết quả**. Chọn Agent để xem công việc, kết quả công cụ
-và lịch sử; không cần tự bấm chạy từng tác vụ.
+![Văn phòng Agent với đội ngũ, theo dõi và kết quả công việc](docs/images/agent-office.png)
+
+Ảnh xem trước dùng dữ liệu kiểm thử. Có Văn phòng 3D, Luồng giao việc, Trao đổi
+và Kết quả. Chọn Agent để xem bằng chứng và lịch sử.
+[Xem phòng trao đổi và bảng PAPER](docs/images/agent-collaboration.png).
 
 Giao diện mở bằng trình duyệt; backend chạy trên máy Windows sẵn có hoặc cloud.
 Backend FastAPI + SQLite, 16 vai trò Agent chạy trong một worker, dashboard

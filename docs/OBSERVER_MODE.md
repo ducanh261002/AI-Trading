@@ -28,8 +28,9 @@ lựa chọn đó được giữ khi khởi động lại.
 
 ## Chế độ mặc định
 
-`ATC_OBSERVER_MODE=true`, kể cả khi `.env` cũ chưa có dòng này. Chặn mở vị thế
-paper ở API, Agent tool và broker. `paper_auto` không được mở lệnh mới.
+`ATC_OBSERVER_MODE=true`, kể cả khi `.env` cũ chưa có dòng này. Các API/tool phân tích vẫn chặn mở vị thế. **PAPER tự động** là đường riêng chỉ
+được cấp quyền sau khi bạn bấm khởi động, vẫn qua risk Python. Xem
+[AI Trading Center](AI_TRADING_CENTER.md). `paper_auto` cũ không được mở lệnh mới trong observer mode.
 Vị thế paper cũ vẫn được cập nhật/đóng theo quy tắc hiện có. Không gửi lệnh production.
 
 Bảng công cụ cũ ở `/operator`. Người dùng nâng cao có thể đặt
@@ -56,3 +57,10 @@ Phong cách giao diện lấy cảm hứng từ video tham khảo, giữ nội d
 Đây là workflow Python tự động với Ollama tùy chọn, không phải các mô hình
 độc lập có khả năng điều khiển trình duyệt/máy tính như mọi tác vụ trong video.
 Không tự sinh dữ liệu hoặc giả trạng thái bận để làm văn phòng trông sống động.
+
+## Phối hợp và theo dõi liên tục
+
+Nút **Giao việc cho CEO**, **Kết nối AI**, tab **Trao đổi** và bảng **PAPER tự động**
+đã được bổ sung. Agent Idle có quan sát đo được sẽ hiện **Đang theo dõi**, không giả
+đang xử lý. Phần kết nối AI phân biệt rõ công cụ Python và suy luận mô hình.
+Xem [hướng dẫn đầy đủ](AI_TRADING_CENTER.md).

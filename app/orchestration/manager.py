@@ -10,6 +10,7 @@ from app.orchestration.lock import WorkerLock
 from app.orchestration.store import TaskStore
 from app.orchestration.tools import PLAN, Tools
 from app.orchestration.brief import research_brief
+from app.orchestration.live import LiveDesk
 
 
 class Coordinator:
@@ -27,6 +28,7 @@ class Coordinator:
         self.research_interval = "5m"
         self.research_message = "CEO chưa được bật tự phân tích."
         self.research_offset = 0
+        self.live = LiveDesk(self)
 
     async def start(self):
         self.store.initialize(default_enabled=bool(self.settings.agent_auto_seconds))
@@ -35,6 +37,7 @@ class Coordinator:
         preferences = self.store.research_settings()
         self.research_enabled = bool(preferences["enabled"])
         self.research_interval = preferences["interval"]
+        self.live.initialize()
         if not self.settings.agents_enabled:
             return
         self.lock.acquire()
@@ -57,6 +60,7 @@ class Coordinator:
                         await process
         finally:
             try:
+                await self.live.stop()
                 await self.tools.drain()
             finally:
                 self.lock.release()
@@ -69,11 +73,14 @@ class Coordinator:
         candles = self.market.store.read(symbol, interval) if candles is None else candles
         run_id, created = self.store.enqueue(symbol, interval, request_key or str(uuid4()), PLAN,
                                            analysis_only=bool(analysis_only or self.settings.observer_mode), candles=candles)
+        if created:
+            self.live.queued(run_id, symbol, interval)
         return {"run_id": run_id, "created": created}
 
     async def schedule(self):
         while True:
             try:
+                await self.live.tick()
                 self.research_tick()
             except Exception:
                 self.research_message = "CEO gặp lỗi khi lên lịch; xem nhật ký và thử lại. Không mở lệnh."
@@ -86,6 +93,8 @@ class Coordinator:
             raise ValueError("Khung thời gian không được hỗ trợ.")
         self.store.save_research_settings(enabled, interval)
         self.research_enabled, self.research_interval = enabled, interval
+        if not enabled and self.trading.autopilot_enabled:
+            self.trading.configure_autopilot(False)
         self.research_message = "CEO đã được bật; đang kiểm tra dữ liệu." if enabled else "Đã dừng xếp nhiệm vụ mới; chu kỳ đang xử lý có thể hoàn tất."
         if enabled:
             self.research_tick()
@@ -97,7 +106,9 @@ class Coordinator:
         if not self.market.snapshot()["connected"]:
             self.research_message = "Đang chờ dữ liệu LIVE; chưa chạy backtest mới."
             return
-        symbols = self.market.symbols
+        symbols = self.live.symbols()
+        if not symbols:
+            return
         ordered = symbols[self.research_offset:] + symbols[:self.research_offset]
         self.research_offset = (self.research_offset + 1) % len(symbols)
         messages = []
@@ -146,11 +157,18 @@ class Coordinator:
                 await asyncio.sleep(0.1)
                 continue
             try:
+                run = self.store.run(task['run_id'])
+                import json
+                dependencies = json.loads(task.get('depends_on') or '[]')
+                task['context'] = {t['agent_id']: {'task_id':t['id'],'status':t['status'],'result':t['result']} for t in run['tasks'] if t['id'] in dependencies}
+                self.live.received(task)
                 if task["agent_id"] == "ceo" and self.settings.ollama_enabled:
                     self.store.transition(task["id"], "Thinking")
                 async with asyncio.timeout(self.settings.agent_task_timeout):
                     output = await self.tools.dispatch(task)
+                output["result"]["input_evidence_ids"] = [t["task_id"] for t in task["context"].values()]
                 self.store.transition(task["id"], output["status"], result=output["result"])
+                self.live.finished(task, output)
             except asyncio.CancelledError:
                 status = "Pending" if task["attempts"] < task["max_attempts"] else "Error"
                 self.store.transition(task["id"], status, error="Worker stopped; read-only task interrupted")

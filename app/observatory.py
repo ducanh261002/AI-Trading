@@ -78,6 +78,14 @@ def snapshot(coordinator, market, settings):
     runs = coordinator.store.runs()[:12]
     active = next((r for r in runs if r['status'] in {'Working','Pending'}), runs[0] if runs else None)
     cycle = cycle_view(coordinator, active['id']) if active else None
+    live = coordinator.live.snapshot()
+    watches = {row['agent_id']:row for row in live['observations']}
+    for agent in agents:
+        agent['watch'] = watches.get(agent['id'])
+        if live['active'] and agent['watch'] and agent['status']=='Idle':
+            agent['status']='Monitoring'
+        if live['thinking']==agent['id']:
+            agent['status']='Thinking'
     source = market.snapshot()
     return {'as_of': current.isoformat(), 'agents': agents, 'activity': [task_view(t) for t in rows[:20]],
             'pending_tasks':pending, 'finished_today':finished,
@@ -85,8 +93,8 @@ def snapshot(coordinator, market, settings):
                 {k: row.get(k) for k in ('symbol','price','fresh')} for row in source.get('symbols',[])]},
             'research': coordinator.research_status(), 'observer_mode':settings.observer_mode,
             'ollama': {'enabled':settings.ollama_enabled,'last_request_ok':coordinator.summary.available},
-            'cycle':cycle, 'cycles':[{k:r[k] for k in ('id','symbol','interval','status','created_at','finished_at')} for r in runs],
-            'new_positions_allowed':False if settings.observer_mode else None}
+            'live':live, 'cycle':cycle, 'cycles':[{k:r[k] for k in ('id','symbol','interval','status','created_at','finished_at')} for r in runs],
+            'new_positions_allowed':bool(coordinator.trading.autopilot_enabled and not coordinator.database.halted()) if settings.observer_mode else None}
 
 # Explicit projections keep credentials, model prose and untrusted tool payloads out
 # of the observer workbench. Values shown here are recorded outputs, not live claims.

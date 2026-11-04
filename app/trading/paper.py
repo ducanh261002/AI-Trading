@@ -13,6 +13,7 @@ from app.market.models import INTERVALS
 class PaperBroker:
     def __init__(self, settings, database, market):
         self.settings, self.database, self.market = settings, database, market
+        self.autopilot_allowed = False
         self.risk = RiskManager(settings)
 
     def initialize(self):
@@ -75,8 +76,8 @@ class PaperBroker:
         return self.risk.review(sized, self.portfolio(), filters,
                                 snapshot["connected"] and row.get("fresh", False), self.database.halted())
 
-    def enter(self, proposal):
-        if self.settings.observer_mode:
+    def enter(self, proposal, *, autopilot=False):
+        if self.settings.observer_mode and not (autopilot and self.autopilot_allowed):
             return {"sent": False, "reason": "Observer mode: không mở vị thế mới"}
         # Recalculate approval now; never trust an approval from an Agent or LLM.
         review = self.review(proposal)
