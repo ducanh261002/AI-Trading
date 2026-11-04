@@ -5,7 +5,7 @@ không là chứng nhận hệ thống giao dịch tiền thật.
 
 ## Đã thực hiện
 
-- Bộ test Python: 54 bài, gồm hồi quy Foundation/Market/Agents và các test
+- Bộ test Python: 57 bài, gồm hồi quy Foundation/Market/Agents và các test
   mới cho indicators, strategy HOLD/warmup, risk rejects, sizing/costs,
   stop-first/next-open/holdout, paper dedup/close/ledger/restart, backup,
   hosted login/cookies/CSRF/rate-limit, Testnet signing/UNKNOWN/reconcile.
@@ -96,7 +96,7 @@ với dữ liệu kiểm thử và nhãn fixture. Evidence cục bộ ở `artif
 
 ## Collaboration / PAPER autopilot
 
-54 tests đạt. Bổ sung mission lưu qua restart, dependency receipts và ID đầu vào
+57 tests đạt. Bổ sung mission lưu qua restart, dependency receipts và ID đầu vào
 thật; theo dõi giá mới không chạy backtest trùng; mô hình local dùng nhận xét trước
 nhưng không có tools; PAPER mở vị thế qua risk, không trùng, Kill Switch chặn và
 restart không tự bật. Nhận xét AI được kiểm thử bằng HTTP mock, chưa xác nhận tốc độ
@@ -104,3 +104,13 @@ model trên máy Windows người dùng.
 Chromium fixture: giao nhiệm vụ, bàn giao/receipt, 16 quan sát, cập nhật sau nhịp
 15 giây, model chưa có hiện đúng thông báo, bật/dừng PAPER và điện thoại không tràn.
 Không có lỗi JavaScript; chưa thử cài model thật trên máy người dùng.
+
+## Telemetry và Agent chuyên biệt
+
+57 tests đạt. Đối chiếu PnL ròng với phí/sổ và giá vị thế; lịch sử qua restart và
+trạng thái giá cũ; HOLD/metadata/chưa khởi động được chẩn đoán không ép mở lệnh.
+Agent bổ sung giới hạn bốn chuyên môn chỉ đọc, từ chối quyền execute và giữ qua restart.
+Chromium fixture xác nhận sáu thẻ số liệu, lý do chặn từng cặp, Agent thứ 17 có
+bàn 3D/quan sát và không có lỗi JS hoặc tràn ngang ở 390px.
+Chưa có chẩn đoán JSON từ máy Windows người dùng nên chưa xác định nguyên nhân
+riêng khiến phiên của họ chưa mở lệnh. Chưa kết nối/PnL tài khoản Binance thật.

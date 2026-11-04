@@ -61,7 +61,28 @@ canvas.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,startX:e
 const ray=new THREE.Raycaster();canvas.addEventListener('pointerup',e=>{if(!moved&&enabled){const rect=canvas.getBoundingClientRect();ray.setFromCamera(new THREE.Vector2((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1),camera);const targets=[...avatars.values()].flatMap(a=>[a.group,a.screen]);const hit=ray.intersectObjects(targets,true).find(hit=>hit.object.userData.id);if(hit)choose(hit.object.userData.id);}drag=null;});canvas.addEventListener('pointercancel',()=>{drag=null;});canvas.addEventListener('wheel',e=>{e.preventDefault();zoom=THREE.MathUtils.clamp(zoom*(e.deltaY>0?.94:1.06),.65,1.6);dirty=true;},{passive:false});
 function refreshLabels(){for(const [id,a] of avatars){const visible=allLabels||['Working','Thinking'].includes(a.status)||id===selected||id==='ceo';if(a.label)a.label.hidden=!visible;if(a.line)a.line.style.display=visible?'':'none';}dirty=true;}
 document.getElementById('label-mode')?.addEventListener('click',()=>{allLabels=!allLabels;document.getElementById('label-mode').textContent=allLabels?'Nhãn: tất cả':'Nhãn: công việc';refreshLabels();});
-function states(items){for(const agent of items){const a=avatars.get(agent.id);if(!a)continue;a.status=agent.status;const color=palette[agent.status]||palette.Offline;a.screen.material.color.set(color);a.screen.material.emissive.set(color).multiplyScalar(.22);a.ring.material.color.set(color);if(a.label){a.label.dataset.state=agent.status;a.label.title=agent.name;a.label.querySelector('strong').textContent=agent.shortName||agent.name;a.label.querySelector('.state').textContent=agent.displayState||agent.status;a.label.querySelector('.task').textContent=agent.activity||agent.latest_task?.tool||'Chờ nhiệm vụ';}}refreshLabels();dirty=true;}
+function spawnSpecialist(agent){
+ const index=[...avatars.values()].filter(a=>a.specialist).length;
+ if(index>=4)return null;
+ const x=index%2?13:-13,z=index<2?-4.7:6.4;
+ const root=new THREE.Group();root.position.set(x,0,z);scene.add(root);
+ const deskMat=new THREE.MeshStandardMaterial({color:0x335e70});
+ part(root,boxGeo,deskMat,[0,.85,0],[2.1,.12,1.1]);
+ for(const dx of [-.85,.85])part(root,boxGeo,deskMat,[dx,.42,0],[.08,.8,.65]);
+ part(root,boxGeo,deskMat,[0,.02,0],[2.9,.12,3.1]);
+ const group=new THREE.Group();group.position.z=.95;root.add(group);
+ part(group,boxGeo,bodyMaterial,[0,.85,0],[.42,.55,.27]);
+ const head=part(group,sphereGeo,headMaterial,[0,1.3,-.02],[.22,.26,.21]);
+ const arms=[-1,1].map(side=>part(group,boxGeo,bodyMaterial,[side*.26,.84,-.25],[.13,.12,.5]));
+ const screen=part(root,boxGeo,new THREE.MeshStandardMaterial({color:palette.Monitoring,emissive:0x193f52}),[0,1.28,-.26],[.92,.6,.07]);
+ const ring=part(root,new THREE.RingGeometry(.5,.58,20),new THREE.MeshBasicMaterial({color:palette.Monitoring,side:THREE.DoubleSide,transparent:true}),[0,.12,1],[1,1,1]);ring.rotation.x=-Math.PI/2;
+ const plate=textSprite(agent.name.slice(0,18),'#9ce2ec');plate.scale.set(2,.3125,1);plate.position.set(0,.35,1.65);root.add(plate);
+ group.traverse(o=>{if(o.isMesh)o.userData.id=agent.id;});screen.userData.id=agent.id;
+ const a={group,arms,head,screen,ring,turnUntil:0,status:'Monitoring',anchor:new THREE.Vector3(x,1.75,z+.7),label:null,specialist:true};
+ if(labelContainer){const e=document.createElement('button');e.className='desk-label';e.dataset.id=agent.id;const name=document.createElement('strong'),state=document.createElement('span'),task=document.createElement('span');state.className='state';task.className='task';e.append(name,state,task);e.addEventListener('click',()=>choose(agent.id));labelContainer.append(e);a.label=e;const line=document.createElementNS(svg.namespaceURI,'line');line.setAttribute('stroke','#9ccabb');line.setAttribute('stroke-opacity','.27');line.setAttribute('stroke-width','.7');svg.append(line);a.line=line;}
+ avatars.set(agent.id,a);return a;
+}
+function states(items){for(const agent of items){let a=avatars.get(agent.id);if(!a&&agent.specialist)a=spawnSpecialist(agent);if(!a)continue;a.status=agent.status;const color=palette[agent.status]||palette.Offline;a.screen.material.color.set(color);a.screen.material.emissive.set(color).multiplyScalar(.22);a.ring.material.color.set(color);if(a.label){a.label.dataset.state=agent.status;a.label.title=agent.name;a.label.querySelector('strong').textContent=agent.shortName||agent.name;a.label.querySelector('.state').textContent=agent.displayState||agent.status;a.label.querySelector('.task').textContent=agent.activity||agent.latest_task?.tool||'Chờ nhiệm vụ';}}refreshLabels();dirty=true;}
 window.addEventListener('agent-states',e=>states(e.detail));window.addEventListener('agent-selected',e=>{selected=e.detail;refreshLabels();});if(window.__agentStates)states(window.__agentStates);
 new ResizeObserver(()=>{dirty=true;}).observe(canvas);
 const handoffFlights=[];

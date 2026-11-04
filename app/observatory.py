@@ -86,6 +86,11 @@ def snapshot(coordinator, market, settings):
             agent['status']='Monitoring'
         if live['thinking']==agent['id']:
             agent['status']='Thinking'
+    for specialist in live['specialists']:
+        watch=watches.get(specialist['id'])
+        agents.append({'id':specialist['id'],'name':specialist['name'],'department':'Technology',
+            'purpose':specialist['purpose'],'status':'Thinking' if live['thinking']==specialist['id'] else 'Monitoring' if live['active'] and watch else 'Idle',
+            'task':None,'history':[],'watch':watch,'specialist':True,'focus':specialist['focus']})
     source = market.snapshot()
     return {'as_of': current.isoformat(), 'agents': agents, 'activity': [task_view(t) for t in rows[:20]],
             'pending_tasks':pending, 'finished_today':finished,

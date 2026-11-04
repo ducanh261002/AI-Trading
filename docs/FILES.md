@@ -96,3 +96,8 @@ Mã nguồn từng file nằm nguyên vẹn trong ZIP; không có function TODO 
 - `CAI_AI_WINDOWS.cmd`: hướng dẫn cài Ollama và tải model local trên Windows.
 - `docs/AI_TRADING_CENTER.md`: cách dùng và giới hạn tự động hóa.
 - `tests/test_collaboration.py`: kiểm thử phối hợp, model và PAPER autopilot.
+
+- `app/trading/telemetry.py`: PnL PAPER từ ledger/positions, lịch sử 24h và chẩn đoán lệnh.
+- `app/static/analytics.js`, `analytics.css`: PnL, chẩn đoán và tạo Agent chuyên biệt.
+- `tests/test_telemetry.py`: kiểm tra PnL, lịch sử và quyền Agent bổ sung.
+- `docs/images/paper-pnl.png`: ảnh fixture của PnL/chẩn đoán.

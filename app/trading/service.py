@@ -11,6 +11,7 @@ from uuid import uuid4
 from app.db import now
 from app.trading.backtest import run_backtest
 from app.trading.paper import PaperBroker
+from app.trading.telemetry import TradingTelemetry
 from app.trading.strategies import STRATEGIES, choose, evaluate
 
 
@@ -25,6 +26,7 @@ class TradingService:
         self.autopilot_checked_at = None
         self.on_paper_event = None
         self.last_autopilot_messages = {}
+        self.telemetry = TradingTelemetry(self)
         self.task = None
         self.maintenance_task = None
         self.maintenance_lock = threading.Lock()
@@ -32,6 +34,7 @@ class TradingService:
 
     async def start(self):
         self.paper.initialize()
+        self.telemetry.initialize()
         self.task = asyncio.create_task(self.run(), name="paper-and-reports")
 
     async def stop(self):
@@ -183,6 +186,7 @@ class TradingService:
                     self.database.halt()
                 self.paper.update_positions()
                 self.autopilot_tick()
+                self.telemetry.sample()
                 if self.settings.paper_auto and not self.settings.observer_mode and not self.database.halted():
                     for symbol in self.market.symbols:
                         self.paper.enter(self.proposal(symbol, "5m"))

@@ -39,6 +39,13 @@ class MissionRequest(BaseModel):
     interval: Literal["5m", "15m", "1h", "4h"] = "5m"
 
 
+class SpecialistRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=2,max_length=40)
+    focus: Literal['market','technical','risk','report']
+    purpose: str = Field(min_length=8,max_length=250)
+
+
 class AutopilotRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     enabled: bool
@@ -142,6 +149,18 @@ def create_app(settings: Settings | None = None):
         if result is None:
             raise HTTPException(404, "Cycle not found")
         return result
+
+    @app.post("/api/agents/specialists",status_code=201)
+    async def add_specialist(body: SpecialistRequest):
+        try:
+            return coordinator.live.add_specialist(body.name,body.focus,body.purpose)
+        except ValueError as exc:
+            raise HTTPException(409,str(exc)) from exc
+
+    @app.get("/api/trading/telemetry")
+    async def paper_telemetry():
+        return {"account":trading.telemetry.account(),"history":trading.telemetry.history(),
+                "diagnostics":trading.telemetry.diagnostics()}
 
     @app.get("/api/autopilot")
     async def autopilot_status():
@@ -322,6 +341,14 @@ def create_app(settings: Settings | None = None):
     @app.get("/login.js", include_in_schema=False)
     def login_script():
         return FileResponse(static / "login.js", media_type="text/javascript")
+
+    @app.get("/analytics.js", include_in_schema=False)
+    def analytics_script():
+        return FileResponse(static / "analytics.js", media_type="text/javascript")
+
+    @app.get("/analytics.css", include_in_schema=False)
+    def analytics_style():
+        return FileResponse(static / "analytics.css", media_type="text/css")
 
     @app.get("/collaboration.js", include_in_schema=False)
     def collaboration_script():

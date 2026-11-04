@@ -30,6 +30,9 @@ class LiveDesk:
                 CREATE TABLE IF NOT EXISTS agent_missions(
                     id TEXT PRIMARY KEY, created_at TEXT NOT NULL, objective TEXT NOT NULL,
                     symbols TEXT NOT NULL, interval TEXT NOT NULL, active INTEGER NOT NULL);
+                CREATE TABLE IF NOT EXISTS agent_specialists(
+                    id TEXT PRIMARY KEY,created_at TEXT NOT NULL,name TEXT UNIQUE NOT NULL,
+                    focus TEXT NOT NULL,purpose TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS agent_improvements(
                     run_id TEXT PRIMARY KEY, created_at TEXT NOT NULL, symbol TEXT NOT NULL,
                     interval TEXT NOT NULL, status TEXT NOT NULL, conclusion TEXT NOT NULL,
@@ -50,6 +53,24 @@ class LiveDesk:
                     str(uuid4()),now(),'Theo dõi thị trường, kiểm thử ba chiến lược và báo cáo rủi ro; không mở lệnh.',
                     json.dumps(self.owner.market.symbols),self.owner.research_interval))
         self.message('ceo','team','system','Bộ điều phối đã khởi động. Theo dõi dữ liệu thường xuyên; nghiên cứu nến mới và báo cáo từ công cụ thực.')
+
+    def specialists(self):
+        with self.owner.database.connect() as con:
+            return [dict(r) for r in con.execute('SELECT * FROM agent_specialists ORDER BY created_at')]
+
+    def add_specialist(self,name,focus,purpose):
+        from app.agents import AGENTS
+        if not name.strip() or not purpose.strip():raise ValueError('Name/purpose required')
+        with self.owner.database.connect() as con:
+            if con.execute('SELECT COUNT(*) FROM agent_specialists').fetchone()[0]>=4:
+                raise ValueError('Tối đa 4 Agent chuyên biệt bổ sung trong bản này')
+            if name.strip().casefold() in {a.name.casefold() for a in AGENTS} or con.execute('SELECT 1 FROM agent_specialists WHERE LOWER(name)=LOWER(?)',(name.strip(),)).fetchone():
+                raise ValueError('Tên Agent đã được sử dụng')
+            identifier='specialist-'+uuid4().hex[:10]
+            con.execute('INSERT INTO agent_specialists VALUES(?,?,?,?,?)',(identifier,now(),name.strip(),focus,purpose.strip()))
+        self.message('ceo',identifier,'assignment','Agent nghiên cứu mới được khởi tạo. Quyền chỉ đọc: '+focus+'. Không cấp quyền giao dịch hoặc sửa mã.')
+        self.next_check=0
+        return {'id':identifier,'name':name.strip(),'focus':focus,'purpose':purpose.strip(),'capabilities':['read_measurements','advisory_only']}
 
     def message(self, sender, recipient, kind, body, run_id=None, task_id=None, model=None, dedupe=None):
         with self.owner.database.connect() as con:
@@ -156,6 +177,8 @@ class LiveDesk:
             'report':'Đã đọc '+str(len(reports))+' báo cáo nghiên cứu gần nhất. '+' · '.join(proposals),
             'ceo':'Đang điều phối theo chỉ thị hiện tại. '+('Theo dõi LIVE và chờ nến mới để nghiên cứu chuyên sâu.' if snapshot['connected'] else 'Đang yêu cầu bộ phận dữ liệu chờ kết nối; không tạo kết quả giả.'),
         }
+        for specialist in self.specialists():
+            descriptions[specialist['id']]=descriptions[specialist['focus']]
         self.checked_at=now()
         self.observations={key:{'agent_id':key,'checked_at':self.checked_at,'summary':value,'source':'python'} for key,value in descriptions.items()}
         # These are measured watch reports, not simulated LLM conversations.
@@ -188,7 +211,8 @@ class LiveDesk:
             self.model_state='Chưa kết nối được Ollama hoặc chưa có model '+self.owner.settings.ollama_model+'. Công cụ Python vẫn hoạt động.'
 
     async def reflect(self):
-        roles=['market','technical','strategy','risk','report','ceo']
+        specialists=self.specialists()
+        roles=['market','technical','strategy','risk','report','ceo']+[s['id'] for s in specialists]
         role=roles[self.reflection_role%len(roles)];self.reflection_role+=1
         self.thinking=role
         model=self.owner.settings.ollama_model
@@ -196,7 +220,8 @@ class LiveDesk:
             # Only allowlisted measurements and prior advisory text, never commands,
             # keys, news, user instructions or arbitrary tool outputs go to a model.
             previous=[m for m in self.snapshot()['messages'] if m['kind']=='ai'][:2]
-            result=await self.owner.summary.discuss(role,self.observations.get(role,{}).get('summary','Chưa có dữ liệu'),
+            model_role=next((s['focus'] for s in specialists if s['id']==role),role)
+            result=await self.owner.summary.discuss(model_role,self.observations.get(role,{}).get('summary','Chưa có dữ liệu'),
                 [{'sender':m['sender'],'text':m['body']} for m in previous])
             if result['used']:
                 self.message(role,'ceo' if role!='ceo' else 'user','ai',result['text'],model=model)
@@ -236,6 +261,6 @@ class LiveDesk:
         return {'active':active,'watch_seconds':self.owner.settings.live_watch_seconds,
             'checked_at':self.checked_at,'observations':list(self.observations.values()),
             'autopilot':self.owner.trading.autopilot_status(),'improvements':improvements,
-            'missions':self.missions(),'messages':messages,'thinking':self.thinking,
+            'specialists':self.specialists(),'missions':self.missions(),'messages':messages,'thinking':self.thinking,
             'model_ready':self.model_ready,'model_message':self.model_state,
             'model_enabled':self.owner.settings.ollama_enabled,'model':self.owner.settings.ollama_model}

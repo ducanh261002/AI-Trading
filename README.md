@@ -8,13 +8,15 @@ Xem [hướng dẫn AI Trading Center](docs/AI_TRADING_CENTER.md).
 - **Khởi động PAPER tự động** để mô phỏng giao dịch sau kiểm tra risk. Không có lệnh tiền thật.
 - **Kết nối AI** với Ollama để có nhận xét mô hình thật. Chưa kết nối thì chỉ chạy công cụ Python,
   không giả là AI đang suy nghĩ. Windows có file hỗ trợ **CAI_AI_WINDOWS.cmd**.
+- Tab **PnL & lệnh**: biểu đồ từ sổ PAPER, phí/funding, vị thế và chẩn đoán vì sao chưa mở lệnh.
+- **＋ Agent**: thêm tối đa bốn Agent nghiên cứu chỉ đọc, có bàn 3D và lưu qua restart.
 - Lưu đánh giá cải tiến chiến lược; chưa tự sửa và triển khai code.
 
 ![Văn phòng Agent với đội ngũ, theo dõi và kết quả công việc](docs/images/agent-office.png)
 
 Ảnh xem trước dùng dữ liệu kiểm thử. Có Văn phòng 3D, Luồng giao việc, Trao đổi
 và Kết quả. Chọn Agent để xem bằng chứng và lịch sử.
-[Xem phòng trao đổi và bảng PAPER](docs/images/agent-collaboration.png).
+[Xem phòng trao đổi và bảng PAPER](docs/images/agent-collaboration.png) · [Xem PnL và chẩn đoán](docs/images/paper-pnl.png).
 
 Giao diện mở bằng trình duyệt; backend chạy trên máy Windows sẵn có hoặc cloud.
 Backend FastAPI + SQLite, 16 vai trò Agent chạy trong một worker, dashboard

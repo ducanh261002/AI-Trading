@@ -66,3 +66,30 @@ triển khai mã nguồn. Không chứng nhận chiến lược có lợi nhuậ
 
 Hộp thư giữ khoảng 2.000 thông điệp gần nhất; đánh giá giữ 1.000 bản. Lịch sử task,
 báo cáo và backtest tiếp tục nằm SQLite theo cơ chế lưu/retention hiện có.
+
+## PnL, nguyên nhân chưa mở lệnh và Agent bổ sung
+
+Mở tab **PnL & lệnh**:
+
+- Equity, PnL đã ghi sổ ròng, PnL chưa chốt, tổng PnL ròng, phí và funding đều
+  tính từ sổ/positions PAPER. Đây **không phải** số dư/PnL tài khoản Binance thật.
+- Biểu đồ ghi một điểm khoảng mỗi 5 giây, giữ 24 giờ, tồn tại sau restart.
+  Giao diện hiển thị tối đa khoảng 480 điểm đã lấy mẫu. Giá cũ/mất kết nối được
+  đánh dấu; PnL chưa chốt là ước tính theo giá tham chiếu PAPER, không phải chứng
+  nhận mark/PnL của một tài khoản trên sàn.
+- Mục **Vì sao chưa mở lệnh?** đọc trạng thái từng chiến lược, số nến, bộ lọc sàn,
+  độ lệch điểm vào, risk và kết quả thử gần nhất. Chưa khởi động, HOLD, dữ liệu cũ,
+  thiếu metadata, lệch giá và giới hạn tài khoản có lý do riêng.
+- **Tải chẩn đoán lệnh** xuất JSON từ phiên đang chạy, không có API key. Có thể
+  gửi file/ảnh mục chẩn đoán để xác định lỗi trên máy bạn; môi trường phát triển
+  không tự đọc được trạng thái tại `127.0.0.1` của máy Windows khác.
+
+Bấm **＋ Agent** để thêm tối đa bốn Agent chuyên biệt: market, technical, risk hoặc
+report. Các Agent này đọc quan sát có thật, có bàn trong 3D, được lưu qua restart
+và tham gia nhận xét nếu mô hình kết nối. Đây là Agent cấu hình theo chuyên môn
+có sẵn, không phải tạo công cụ/code tùy ý. Luồng task nghiên cứu lõi vẫn có 16 vai trò.
+Tên/nhiệm vụ ghi chú không được thực thi như mã hoặc lệnh giao dịch.
+
+Khả năng tự viết tính năng mới, kiểm thử rồi tự triển khai mã nguồn **chưa có**.
+Bản hiện tại tự nghiên cứu/đánh giá chiến lược và cho phép mở rộng Agent chỉ đọc;
+không nên coi các đánh giá đó là một hệ thống tự lập trình đã hoàn chỉnh.
