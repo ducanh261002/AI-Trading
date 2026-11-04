@@ -25,6 +25,9 @@ class PaperBroker:
                 CREATE TABLE IF NOT EXISTS backtest_results(id TEXT PRIMARY KEY, created_at TEXT NOT NULL, symbol TEXT NOT NULL, interval TEXT NOT NULL, payload TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS scheduled_reports(id TEXT PRIMARY KEY, created_at TEXT NOT NULL, period TEXT NOT NULL, payload TEXT NOT NULL);
             """)
+            if "cache_key" not in {r["name"] for r in con.execute("PRAGMA table_info(backtest_results)")}:
+                con.execute("ALTER TABLE backtest_results ADD COLUMN cache_key TEXT")
+            con.execute("CREATE UNIQUE INDEX IF NOT EXISTS backtest_cache_key ON backtest_results(cache_key)")
             initial = self.settings.paper_initial_balance
             con.execute("INSERT OR IGNORE INTO paper_account VALUES(1,?)", (json.dumps({"cash": initial, "peak_equity": initial,
                          "day_start_equity": initial, "day": self.day()}),))

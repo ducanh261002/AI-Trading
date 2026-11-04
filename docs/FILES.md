@@ -3,6 +3,9 @@
 Source, tests, deploy và tài liệu; không liệt kê venv, DB hoặc secret files.
 
 ```text
+app/orchestration/brief.py
+docs/AUTONOMOUS_RESEARCH.md
+tests/test_research.py
 CAI_DAT_WINDOWS.cmd
 MO_WEBSITE.cmd
 scripts/windows.py

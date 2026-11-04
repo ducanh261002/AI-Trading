@@ -1,5 +1,10 @@
 # AI Trading Command Center — Website cá nhân
 
+**Tự phân công cho Agent:** xem [CEO tự phân tích](docs/AUTONOMOUS_RESEARCH.md).
+Bật một lần trên dashboard: Backtest Agent tự chạy 3 chiến lược, Report
+Agent báo cáo tiếng Việt; có nến mới thì tự xử lý tiếp. Không cần chạy hoặc
+đọc từng backtest thủ công. Chu kỳ này không mở lệnh paper hay lệnh thật.
+
 Giao diện mở bằng trình duyệt; backend chạy trên máy Windows sẵn có hoặc cloud.
 Backend FastAPI + SQLite, 16 vai trò Agent chạy trong một worker, dashboard
 Three.js/2D, ba chiến lược, backtest và tài khoản **paper**.

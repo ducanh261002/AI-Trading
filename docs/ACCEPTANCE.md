@@ -5,7 +5,7 @@ không là chứng nhận hệ thống giao dịch tiền thật.
 
 ## Đã thực hiện
 
-- Bộ test Python: 38 bài, gồm hồi quy Foundation/Market/Agents và các test
+- Bộ test Python: 43 bài, gồm hồi quy Foundation/Market/Agents và các test
   mới cho indicators, strategy HOLD/warmup, risk rejects, sizing/costs,
   stop-first/next-open/holdout, paper dedup/close/ledger/restart, backup,
   hosted login/cookies/CSRF/rate-limit, Testnet signing/UNKNOWN/reconcile.
@@ -13,6 +13,12 @@ không là chứng nhận hệ thống giao dịch tiền thật.
   khi pip thất bại, phát hiện lockfile thay đổi, từ chối port đang bận và
   kiểm tra HTTP startup/cleanup đúng process. Logic chạy trong Linux; file
   CMD và setup trên Windows thực vẫn cần chủ máy kiểm tra.
+- Bổ sung autonomous research: CEO tự enqueue, Backtest Agent chạy 3 chiến
+  lược cùng snapshot, Report Agent tạo brief, không duplicate khi chưa có
+  nến mới, cache theo chi phí, research không gọi paper.enter dù đã arm,
+  preference qua restart và migration dữ liệu cũ. Chromium fixture có 2
+  báo cáo/6 dòng chiến lược, tự chạy khi thêm nến, không overflow mobile
+  và không JavaScript page errors.
 - HTTP workflow: backend local, tạo chu kỳ 16 Agent, không duplicate cùng
   key, Risk/Execution bị chặn mặc định và `/api/orders` trả 403.
 - Chromium: desktop 1440px, mobile 390px, 16 Agent cards, chu kỳ từ UI,

@@ -59,6 +59,9 @@ khác để chiếm port. Không mở hai backend dùng chung DB.
 
 ## Những điều cần biết
 
+Muốn các Agent tự làm việc: xem [CEO tự phân tích](AUTONOMOUS_RESEARCH.md).
+Bật nút trên dashboard; không phải sửa `.env` hay tự chạy ba backtest.
+
 - Máy phải bật, có Internet, không sleep thì hệ thống mới chạy. Tắt máy
   hoặc sleep sẽ dừng xử lý; không hứa chạy 24/7 khi máy đã tắt.
 - Chưa cần API Key Binance, không nạp tiền. Market công khai không dùng key.

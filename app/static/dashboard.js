@@ -11,6 +11,7 @@ async function api(path, method = 'GET', body = undefined) {
   return response.json();
 }
 async function refresh() {
+  await refreshResearch();
   const [status, agents, tasks, events] = await Promise.all(['/api/status', '/api/agents', '/api/tasks', '/api/events'].map(p => api(p)));
   for (const [id, value] of Object.entries({status, tasks, events})) document.getElementById(id).textContent = JSON.stringify(value, null, 2);
   const container = document.getElementById('agents');
@@ -97,15 +98,73 @@ document.getElementById('run-cycle').addEventListener('click', async event => {
   event.target.disabled = true;
   const interval = document.getElementById('interval').value;
   if (!pendingCycleRequest || pendingCycleRequest.symbol !== symbol || pendingCycleRequest.interval !== interval) {
-    pendingCycleRequest = {symbol, interval, request_key: crypto.randomUUID()};
+    pendingCycleRequest = {symbol, interval, request_key: crypto.randomUUID(), analysis_only: true};
   }
   try {
     const result = await api('/api/agent-cycles', 'POST', pendingCycleRequest);
     activeRun = result.run_id; pendingCycleRequest = null;
-    document.getElementById('agent-feedback').textContent = `Đã xếp lịch chu kỳ ${activeRun}.`;
+    document.getElementById('agent-feedback').textContent = 'Đã giao việc cho 16 Agent. Theo dõi bảng báo cáo tự động phía trên.';
   } catch (error) {
     document.getElementById('agent-feedback').textContent = `${error.message}. Bấm lại để kiểm tra cùng request ID.`;
   } finally { event.target.disabled = false; }
+});
+
+let researchEnabled = false;
+let researchConfigLoaded = false;
+let researchUpdating = false;
+async function refreshResearch() {
+  const state = await api('/api/research');
+  researchEnabled = state.enabled;
+  const selector = document.getElementById('research-interval');
+  if (!researchConfigLoaded || state.enabled) selector.value = state.interval;
+  researchConfigLoaded = true;
+  selector.disabled = state.enabled || researchUpdating;
+  const toggle = document.getElementById('research-toggle');
+  toggle.disabled = !state.worker_running || researchUpdating;
+  toggle.textContent = state.enabled ? 'Dừng tự phân tích' : 'Bật CEO tự phân tích';
+  const mode = !state.worker_running ? 'WORKER CHƯA SẴN SÀNG' : state.enabled ? 'ĐANG THEO DÕI' : 'ĐÃ DỪNG';
+  document.getElementById('research-status').textContent = `${mode} · ${state.symbols.join(', ')} · ${state.interval} · ${state.message}`;
+  const container = document.getElementById('research-reports');
+  container.replaceChildren();
+  if (!state.reports.length) {
+    const text = document.createElement('p');text.textContent='Bật CEO tự phân tích. Khi có đủ nến LIVE, Agent sẽ làm việc và đưa báo cáo tại đây.';container.append(text);
+  }
+  for (const report of state.reports) {
+    const card = document.createElement('article'); card.className = 'research-report';
+    const heading = document.createElement('h3');heading.textContent=`${report.symbol} · ${report.interval} · ${report.sample_candles} nến`;
+    const date = document.createElement('small');date.textContent=report.finished_at ? `Báo cáo: ${new Date(report.finished_at).toLocaleString('vi-VN')}` : 'Đang xử lý';
+    if(report.data_start!==null && report.data_end!==null) date.textContent+=` · Dữ liệu: ${new Date(report.data_start).toLocaleString('vi-VN')} – ${new Date(report.data_end).toLocaleString('vi-VN')}`;
+    const summary = document.createElement('p');summary.textContent=report.summary;
+    card.append(heading,date,summary);
+    const scroll = document.createElement('div');scroll.className='table-scroll';
+    const table = document.createElement('table'), head = document.createElement('thead'), titleRow=document.createElement('tr');
+    for(const text of ['Chiến lược','Số lệnh','Lãi/lỗ mô phỏng','Drawdown','Lợi suất phần kiểm thử']){
+      const cell=document.createElement('th');cell.textContent=text;titleRow.append(cell);
+    }
+    head.append(titleRow);table.append(head);
+    const body=document.createElement('tbody');
+    for(const result of report.comparisons){
+      const row=document.createElement('tr');
+      for(const text of [result.name,result.trades,`${money(result.pnl)} USDT (${money(result.return_percent)}%)`,`${money(result.drawdown_percent)}%`,result.test_return_percent===null?'Chưa đủ dữ liệu':`${money(result.test_return_percent)}% · ${result.test_trades} lệnh`]){
+        const cell=document.createElement('td');cell.textContent=text;row.append(cell);
+      }
+      body.append(row);
+    }
+    table.append(body);scroll.append(table);card.append(scroll);
+    const conclusion=document.createElement('p');conclusion.className='research-conclusion';conclusion.textContent=report.conclusion;card.append(conclusion);
+    const warnings=document.createElement('ul');for(const warning of report.warnings){const item=document.createElement('li');item.textContent=warning;warnings.append(item);}card.append(warnings);
+    const safety=document.createElement('small');safety.textContent=report.execution;card.append(safety);container.append(card);
+  }
+}
+document.getElementById('research-toggle').addEventListener('click',async()=>{
+  const targetEnabled=!researchEnabled;
+  researchUpdating=true;
+  document.getElementById('research-toggle').disabled=true;
+  try {
+    await api('/api/research','POST',{enabled:targetEnabled,interval:document.getElementById('research-interval').value});
+    document.getElementById('research-feedback').textContent=targetEnabled ? 'Đã bật CEO. Các Agent sẽ tự xử lý khi dữ liệu sẵn sàng.' : 'Đã dừng giao việc mới. Chu kỳ đang chạy có thể hoàn tất.';
+  } catch(error){document.getElementById('research-feedback').textContent=error.message;}
+  finally {researchUpdating=false;await refreshResearch().catch(()=>{});}
 });
 
 function drawCandles(rows) {
@@ -168,6 +227,7 @@ for (const [id, endpoint] of [['diagnostic', '/api/diagnostics'], ['halt', '/api
 async function poll() {
   try { await refresh(); }
   catch (error) {
+    document.getElementById('research-status').textContent='Không kết nối được backend; chưa thể xác nhận trạng thái Agent.';
     document.getElementById('feedback').textContent = `Mất kết nối: ${error.message}`;
     document.getElementById('market-status').textContent = 'OFFLINE — không thể xác minh độ mới dữ liệu';
     document.getElementById('prices').replaceChildren();

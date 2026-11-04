@@ -2,6 +2,7 @@ import asyncio
 import json
 import sqlite3
 import threading
+import hashlib
 from contextlib import suppress
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -20,6 +21,7 @@ class TradingService:
         self.task = None
         self.maintenance_task = None
         self.maintenance_lock = threading.Lock()
+        self.backtest_lock = threading.Lock()
 
     async def start(self):
         self.paper.initialize()
@@ -39,14 +41,26 @@ class TradingService:
         proposal = choose(rows) if self.settings.strategy == "consensus" else evaluate(rows, self.settings.strategy)
         return {**proposal, "symbol": symbol, "interval": interval}
 
-    def backtest(self, symbol, interval, strategy):
-        rows = self.market.store.read(symbol, interval)
-        result = run_backtest(rows, strategy, self.settings)
-        identifier = str(uuid4())
-        with self.database.connect() as con:
-            con.execute("INSERT INTO backtest_results VALUES(?,?,?,?,?)", (identifier, now(), symbol, interval, json.dumps(result)))
-            con.execute("DELETE FROM backtest_results WHERE rowid NOT IN (SELECT rowid FROM backtest_results ORDER BY rowid DESC LIMIT 100)")
-        return {"id": identifier, **result}
+    def research_fingerprint(self, rows, symbol, interval):
+        costs = {name: getattr(self.settings, name) for name in ("paper_initial_balance", "fee_rate", "slippage_rate", "funding_rate", "risk_per_trade", "daily_loss_limit", "max_drawdown")}
+        raw = json.dumps({"engine": "backtest-v2", "symbol": symbol, "interval": interval, "rows": rows, "costs": costs,
+                          "signal_selection": self.settings.strategy}, sort_keys=True)
+        return hashlib.sha256(raw.encode()).hexdigest()
+
+    def backtest(self, symbol, interval, strategy, rows=None):
+        rows = self.market.store.read(symbol, interval) if rows is None else rows
+        cache_key = self.research_fingerprint(rows, symbol, interval) + ":" + strategy
+        with self.backtest_lock:
+            with self.database.connect() as con:
+                cached = con.execute("SELECT id,payload FROM backtest_results WHERE cache_key=?", (cache_key,)).fetchone()
+            if cached:
+                return {"id": cached["id"], **json.loads(cached["payload"]), "cached": True}
+            result = run_backtest(rows, strategy, self.settings)
+            identifier = str(uuid4())
+            with self.database.connect() as con:
+                con.execute("INSERT INTO backtest_results(id,created_at,symbol,interval,payload,cache_key) VALUES(?,?,?,?,?,?)", (identifier, now(), symbol, interval, json.dumps(result), cache_key))
+                con.execute("DELETE FROM backtest_results WHERE rowid NOT IN (SELECT rowid FROM backtest_results ORDER BY rowid DESC LIMIT 100)")
+            return {"id": identifier, **result, "cached": False}
 
     def reports(self):
         with self.database.connect() as con:
@@ -93,6 +107,7 @@ class TradingService:
         with self.database.connect() as con:
             con.execute("DELETE FROM events WHERE created_at < ?", (cutoff,))
             con.execute("DELETE FROM tasks WHERE run_id IN (SELECT id FROM agent_runs WHERE finished_at < ?)", (cutoff,))
+            con.execute("DELETE FROM agent_run_data WHERE run_id IN (SELECT id FROM agent_runs WHERE finished_at < ?)", (cutoff,))
             con.execute("DELETE FROM agent_runs WHERE finished_at < ?", (cutoff,))
             con.execute("DELETE FROM tasks WHERE run_id IS NULL AND finished_at < ?", (cutoff,))
             con.execute("DELETE FROM auth_sessions WHERE expires_at < ?", (int(datetime.now(timezone.utc).timestamp()),))

@@ -1,13 +1,15 @@
 from collections import Counter
 from decimal import Decimal
+import asyncio
 
 from app.agents import AGENTS
 from app.db import now
 from app.market.models import INTERVALS
 from app.orchestration.store import TERMINAL
 from app.trading.indicators import series
-from app.trading.strategies import evaluate, STRATEGIES
+from app.trading.strategies import evaluate, STRATEGIES, choose
 from app.news import read_news
+from app.orchestration.brief import research_brief
 
 # A fixed dependency graph, never supplied by an LLM or external article.
 PLAN = (
@@ -17,14 +19,14 @@ PLAN = (
     ("technical", "calculate_indicators", ("market",)),
     ("news", "read_news", ()),
     ("data", "validate_data", ("market",)),
-    ("strategy", "evaluate_strategies", ("technical", "data", "news")),
+    ("backtest", "run_backtest", ("technical", "data")),
+    ("strategy", "evaluate_strategies", ("backtest", "news")),
     ("signal", "propose_signal", ("strategy",)),
     ("risk", "approve_or_reject", ("signal", "security")),
     ("execution", "execute_approved", ("risk",)),
     ("portfolio", "read_positions", ("execution",)),
     ("accounting", "record_ledger", ("portfolio",)),
     ("performance", "calculate_metrics", ("accounting",)),
-    ("backtest", "run_backtest", ("strategy",)),
     ("report", "read_reports", ("performance", "backtest")),
     ("ceo", "coordinate", ("report",)),
 )
@@ -43,6 +45,7 @@ class Tools:
         self.settings, self.database, self.market = settings, database, market
         self.store, self.summary = store, summary
         self.trading = trading
+        self.background_jobs = set()
         self.agents = {agent.id: agent for agent in AGENTS}
         self.handlers = {
             "read_health": self.health, "audit": self.audit,
@@ -62,11 +65,29 @@ class Tools:
             raise PermissionError("Agent tool permission denied")
         return await self.handlers[tool](task)
 
+    def finish_background_job(self, job):
+        self.background_jobs.discard(job)
+        if not job.cancelled():
+            job.exception()  # Retrieve failures even if the task caller timed out.
+
+    async def drain(self):
+        if self.background_jobs:
+            await asyncio.gather(*tuple(self.background_jobs), return_exceptions=True)
+
     def view(self, task):
         snapshot = self.market.snapshot()
         symbol = task["input"]["symbol"]
         row = next(row for row in snapshot["symbols"] if row["symbol"] == symbol)
         return snapshot, row
+
+    def candles(self, task):
+        rows = self.store.candles(task["run_id"]) if task.get("run_id") else None
+        return self.market.store.read(task["input"]["symbol"], task["input"]["interval"]) if rows is None else rows
+
+    def proposal(self, task):
+        rows = self.candles(task)
+        result = choose(rows) if self.settings.strategy == "consensus" else evaluate(rows, self.settings.strategy)
+        return {**result, **task["input"]}
 
     async def halt(self, task):
         self.database.halt()
@@ -94,7 +115,7 @@ class Tools:
     async def technical(self, task):
         snapshot, row = self.view(task)
         interval = task["input"]["interval"]
-        rows = self.market.store.read(row["symbol"], interval)
+        rows = self.candles(task)
         if len(rows) < 20:
             return waiting("At least 20 closed candles required", candle_count=len(rows))
         closes = [Decimal(r["close"]) for r in rows[-20:]]
@@ -111,7 +132,7 @@ class Tools:
     async def validate_data(self, task):
         snapshot, row = self.view(task)
         interval = task["input"]["interval"]
-        rows = self.market.store.read(row["symbol"], interval)
+        rows = self.candles(task)
         gaps = sum(b["open_time"] - a["open_time"] != INTERVALS[interval] for a, b in zip(rows, rows[1:]))
         result = {"candle_count": len(rows), "gaps": gaps, "market_fresh": row["fresh"] and snapshot["connected"]}
         if not rows or gaps or not result["market_fresh"]:
@@ -124,7 +145,7 @@ class Tools:
 
     async def strategies(self, task):
         snapshot, row = self.view(task)
-        rows = self.market.store.read(task["input"]["symbol"], task["input"]["interval"])
+        rows = self.candles(task)
         if len(rows) < 60:
             return waiting("At least 60 closed candles needed for strategy warmup", actionable=False)
         return completed(proposals=[evaluate(rows, strategy) for strategy in STRATEGIES],
@@ -134,16 +155,19 @@ class Tools:
         snapshot, row = self.view(task)
         if not snapshot["connected"] or not row["fresh"]:
             return completed(signal="HOLD", actionable=False, reason="Market not fresh")
-        return completed(**self.trading.proposal(**task["input"]))
+        return completed(**self.proposal(task))
 
     async def risk(self, task):
-        return completed(**self.trading.paper.review(self.trading.proposal(**task["input"])),
+        return completed(**self.trading.paper.review(self.proposal(task)),
                          paper_only=True, llm_override_allowed=False)
 
     async def execution(self, task):
         # There is intentionally no exchange client here. A model response,
         # persisted approval or task payload cannot enable execution.
-        return completed(**self.trading.paper.enter(self.trading.proposal(**task["input"])))
+        if task.get("analysis_only"):
+            return completed(sent=False, paper=True, analysis_only=True, exchange_order_sent=False,
+                             reason="Research cycle cannot open positions, including paper")
+        return completed(**self.trading.paper.enter(self.proposal(task)))
 
     async def portfolio(self, task):
         return completed(**self.trading.paper.portfolio())
@@ -157,12 +181,15 @@ class Tools:
         return completed(**result)
 
     async def backtest(self, task):
-        rows = self.market.store.read(task["input"]["symbol"], task["input"]["interval"])
+        rows = self.candles(task)
         if len(rows) < 120:
             return waiting("At least 120 closed candles needed for backtest")
         results = []
         for strategy in STRATEGIES:
-            result = self.trading.backtest(**task["input"], strategy=strategy)
+            job = asyncio.create_task(asyncio.to_thread(self.trading.backtest, **task["input"], strategy=strategy, rows=rows))
+            self.background_jobs.add(job)
+            job.add_done_callback(self.finish_background_job)
+            result = await asyncio.shield(job)
             result.pop("trades", None)
             result.pop("equity_curve", None)
             results.append(result)
@@ -175,11 +202,15 @@ class Tools:
 
     async def report(self, task):
         counts, ids = self.counts(task)
+        brief = research_brief(self.store.run(task["run_id"]), self.candles(task))
         return completed(task_counts=counts, evidence_task_ids=ids,
-                         execution_available=False, note="Paper results only; missing sources are Waiting")
+                         execution_available=False, brief=brief, note="Paper results only; missing sources are Waiting")
 
     async def coordinate(self, task):
         counts, ids = self.counts(task)
         prose = await self.summary.summarize(counts)
+        report = next((t for t in self.store.run(task["run_id"])["tasks"] if t["agent_id"] == "report"), {})
+        brief = (report.get("result") or {}).get("brief", {})
         return completed(task_counts=counts, evidence_task_ids=ids, execution_available=False,
-                         summary="Agent cycle finished. Only paper fills are possible; exchange orders remain disabled.", local_model=prose)
+                         summary=brief.get("summary", "Chu kỳ kết thúc; chưa có đủ bằng chứng từ Report Agent."),
+                         conclusion=brief.get("conclusion", "Chưa đủ bằng chứng để kết luận."), local_model=prose)

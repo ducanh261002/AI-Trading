@@ -1,4 +1,5 @@
 import ipaddress
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -19,11 +20,21 @@ from app.trading.strategies import STRATEGIES
 from app.security import Auth
 
 
-class CycleRequest(BaseModel):
+class MarketRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     symbol: str = Field(default="BTCUSDT", pattern=r"^[A-Z0-9]{2,16}USDT$")
     interval: Literal["5m", "15m", "1h", "4h"] = "5m"
     request_key: str | None = Field(default=None, min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+
+
+class CycleRequest(MarketRequest):
+    analysis_only: bool = True
+
+
+class ResearchControl(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool
+    interval: Literal["5m", "15m", "1h", "4h"] = "5m"
 
 
 def create_app(settings: Settings | None = None):
@@ -105,7 +116,7 @@ def create_app(settings: Settings | None = None):
     @app.post("/api/agent-cycles", status_code=202)
     async def agent_cycle(body: CycleRequest):
         try:
-            return coordinator.submit(body.symbol, body.interval, body.request_key)
+            return coordinator.submit(body.symbol, body.interval, body.request_key, analysis_only=body.analysis_only)
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from exc
         except OverflowError as exc:
@@ -123,6 +134,17 @@ def create_app(settings: Settings | None = None):
         if result is None:
             raise HTTPException(404, "Agent cycle not found")
         return result
+
+    @app.get("/api/research")
+    async def research_status():
+        return coordinator.research_status()
+
+    @app.post("/api/research")
+    async def research_control(body: ResearchControl):
+        try:
+            return coordinator.configure_research(body.enabled, body.interval)
+        except RuntimeError as exc:
+            raise HTTPException(503, str(exc)) from exc
 
     @app.get("/api/market")
     async def market_snapshot():
@@ -180,11 +202,11 @@ def create_app(settings: Settings | None = None):
         return trading.proposal(symbol, interval)
 
     @app.post("/api/backtests")
-    async def backtests(body: CycleRequest, strategy: Literal["ema_rsi", "macd_atr", "bollinger_volume"] = "ema_rsi"):
+    async def backtests(body: MarketRequest, strategy: Literal["ema_rsi", "macd_atr", "bollinger_volume"] = "ema_rsi"):
         if body.symbol not in market.symbols:
             raise HTTPException(422, "Unsupported symbol")
         try:
-            return trading.backtest(body.symbol, body.interval, strategy)
+            return await asyncio.to_thread(trading.backtest, body.symbol, body.interval, strategy)
         except ValueError as exc:
             raise HTTPException(409, str(exc)) from exc
 
@@ -202,7 +224,7 @@ def create_app(settings: Settings | None = None):
         return {"paper_armed": True, "exchange_execution_available": False}
 
     @app.post("/api/paper/run")
-    async def paper_run(body: CycleRequest):
+    async def paper_run(body: MarketRequest):
         if body.symbol not in market.symbols:
             raise HTTPException(422, "Unsupported symbol")
         return trading.paper.enter(trading.proposal(body.symbol, body.interval))
