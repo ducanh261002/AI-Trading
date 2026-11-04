@@ -6,6 +6,12 @@ Report Agent tự báo cáo. Không cần bấm từng backtest. Xem
 [hướng dẫn chế độ quan sát](docs/OBSERVER_MODE.md).
 Chế độ mặc định không mở vị thế mới hoặc gửi lệnh thật.
 
+![Văn phòng Agent 3D với đội ngũ bên trái và kết quả nhiệm vụ bên phải](docs/images/agent-office.png)
+
+Ảnh xem trước dùng dữ liệu kiểm thử. Giao diện có ba góc xem: **Văn phòng 3D**,
+**Luồng giao việc** và **Kết quả**. Chọn Agent để xem công việc, kết quả công cụ
+và lịch sử; không cần tự bấm chạy từng tác vụ.
+
 Giao diện mở bằng trình duyệt; backend chạy trên máy Windows sẵn có hoặc cloud.
 Backend FastAPI + SQLite, 16 vai trò Agent chạy trong một worker, dashboard
 Three.js/2D, ba chiến lược, backtest và tài khoản **paper**.

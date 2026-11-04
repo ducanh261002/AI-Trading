@@ -5,7 +5,7 @@ không là chứng nhận hệ thống giao dịch tiền thật.
 
 ## Đã thực hiện
 
-- Bộ test Python: 47 bài, gồm hồi quy Foundation/Market/Agents và các test
+- Bộ test Python: 49 bài, gồm hồi quy Foundation/Market/Agents và các test
   mới cho indicators, strategy HOLD/warmup, risk rejects, sizing/costs,
   stop-first/next-open/holdout, paper dedup/close/ledger/restart, backup,
   hosted login/cookies/CSRF/rate-limit, Testnet signing/UNKNOWN/reconcile.
@@ -83,3 +83,13 @@ Chưa thử trực tiếp bản mới trên máy Windows của người dùng.
 Chromium: 16 nhãn không chồng nhau, 16 thẻ Agent, hai báo cáo tự tạo,
 bấm bàn mở chi tiết, chuyển 2D/3D thành công. Màn hình 390px không tràn ngang,
 không có lỗi JavaScript. Evidence cục bộ: `artifacts/observer-verification.json`.
+
+## Văn phòng vận hành theo video tham khảo
+
+49 tests: thêm đối chiếu số liệu backtest/chỉ báo với task đã lưu, dependency
+thật, progress/cảnh báo, trường kết quả allowlist và xác thực API chu kỳ hosted.
+Chromium kiểm tra sidebar 16 Agent, tìm theo RSI, lọc việc đang xử lý, bàn kết quả
+ba chiến lược, sơ đồ 16 nút/17 cạnh, chọn chu kỳ cũ, 2D fallback, điện thoại
+390px không tràn ngang và mất kết nối. Không có lỗi JavaScript.
+Ảnh/video nguồn không được nhúng vào sản phẩm; ảnh README là UI của dự án
+với dữ liệu kiểm thử và nhãn fixture. Evidence cục bộ ở `artifacts/workbench-verification.json`.

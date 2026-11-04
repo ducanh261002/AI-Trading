@@ -18,7 +18,7 @@ from app.orchestration.manager import Coordinator
 from app.trading.service import TradingService
 from app.trading.strategies import STRATEGIES
 from app.security import Auth
-from app.observatory import snapshot
+from app.observatory import snapshot, cycle_view
 
 
 class MarketRequest(BaseModel):
@@ -113,6 +113,13 @@ def create_app(settings: Settings | None = None):
     @app.get("/api/observatory")
     async def observatory():
         return snapshot(coordinator, market, settings)
+
+    @app.get("/api/observatory/cycles/{run_id}")
+    async def observer_cycle(run_id: str):
+        result = cycle_view(coordinator, run_id)
+        if result is None:
+            raise HTTPException(404, "Cycle not found")
+        return result
 
     @app.get("/api/agents")
     async def agents():
@@ -255,6 +262,14 @@ def create_app(settings: Settings | None = None):
     @app.get("/login.js", include_in_schema=False)
     def login_script():
         return FileResponse(static / "login.js", media_type="text/javascript")
+
+    @app.get("/workbench.js", include_in_schema=False)
+    def workbench_script():
+        return FileResponse(static / "workbench.js", media_type="text/javascript")
+
+    @app.get("/workbench.css", include_in_schema=False)
+    def workbench_style():
+        return FileResponse(static / "workbench.css", media_type="text/css")
 
     @app.get("/scene.js", include_in_schema=False)
     def scene_script():

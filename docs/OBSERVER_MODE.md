@@ -35,3 +35,24 @@ Vị thế paper cũ vẫn được cập nhật/đóng theo quy tắc hiện c�
 Bảng công cụ cũ ở `/operator`. Người dùng nâng cao có thể đặt
 `ATC_OBSERVER_MODE=false` rồi khởi động lại để quay về điều khiển thủ công;
 không cần làm điều này để quan sát.
+
+## Bố cục văn phòng và theo dõi công việc
+
+- **Đội ngũ bên trái:** tìm theo tên, nhiệm vụ hoặc chỉ báo; lọc Agent đang làm.
+  Trạng thái chờ nến không có nghĩa là chương trình bị lỗi.
+- **Văn phòng 3D ở giữa:** nhân vật, bàn và khu làm việc của 16 Agent.
+  Nhãn công việc ưu tiên Agent đang xử lý và Agent đang chọn; **Nhãn: tất cả**
+  hiển thị toàn bộ. Có xoay, zoom, thu gọn đội ngũ và toàn màn hình.
+- **Bàn làm việc bên phải:** chọn Agent để xem công việc, các bước thực thi,
+  kết quả công cụ và lịch sử. Chỉ báo/backtest là giá trị nhiệm vụ đã ghi nhận,
+  có thời điểm cụ thể; không phải số liệu trực tiếp hiện tại.
+- **Luồng giao việc:** 16 nút nối theo dependency thật, không phải sơ đồ tự do.
+  Bấm nút để xem bằng chứng. Thanh tiến độ đếm nhiệm vụ đã xử lý; số hoàn tất,
+  chờ nguồn và lỗi được tách rõ, không coi 100% xử lý là tất cả đều thành công.
+- **Kết quả:** báo cáo tổng hợp, cảnh báo, so sánh và nhật ký. Có thể chọn chu kỳ
+  cũ; **Theo dõi mới nhất** quay lại chu kỳ tự động đang quan sát.
+
+Phong cách giao diện lấy cảm hứng từ video tham khảo, giữ nội dung AI Trading.
+Đây là workflow Python tự động với Ollama tùy chọn, không phải các mô hình
+độc lập có khả năng điều khiển trình duyệt/máy tính như mọi tác vụ trong video.
+Không tự sinh dữ liệu hoặc giả trạng thái bận để làm văn phòng trông sống động.

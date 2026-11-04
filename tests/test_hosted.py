@@ -12,6 +12,7 @@ def test_hosted_login_csrf_logout_and_host(tmp_path):
     with TestClient(create_app(settings), base_url="https://trading.example.com") as client:
         assert client.get("/api/portfolio").status_code == 401
         assert client.get("/api/observatory").status_code == 401
+        assert client.get("/api/observatory/cycles/example").status_code == 401
         assert client.post("/auth/login", json={"password": "test-password-12345"}).status_code == 403
         headers = {"Origin": "https://trading.example.com"}
         assert client.post("/auth/login", json={"password": "wrong"}, headers=headers).status_code == 401

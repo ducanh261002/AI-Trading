@@ -87,3 +87,6 @@ Mã nguồn từng file nằm nguyên vẹn trong ZIP; không có function TODO 
 - `app/static/operator.html`: bảng điều khiển cũ dành cho dùng nâng cao.
 - `tests/test_observatory.py`: tự nghiên cứu, migration, giữ trạng thái dừng, khóa mở vị thế.
 - `docs/OBSERVER_MODE.md`: hướng dẫn quan sát và cập nhật Windows.
+
+- `app/static/workbench.js`, `workbench.css`: đội ngũ, bàn làm việc, dependency graph, chọn chu kỳ và đọc bằng chứng.
+- `docs/images/agent-office.png`: ảnh xem trước đã ghi rõ dữ liệu fixture.

@@ -75,3 +75,42 @@ def test_observer_forces_readonly_even_explicit_operator_cycle(tmp_path):
             time.sleep(.03)
         assert not any(a['status'] in ('Working','Thinking') for a in state['agents'])
         assert next(a for a in state['agents'] if a['id']=='news')['status']=='Waiting'
+
+
+def test_workbench_cycle_evidence_matches_recorded_outputs(tmp_path):
+    app=create_app(config(tmp_path))
+    with TestClient(app) as client:
+        live_fixture(app)
+        app.state.coordinator.research_tick()
+        reports=wait_reports(client)['reports']
+        state=client.get('/api/observatory').json()
+        assert state['cycle']['total']==16 and state['cycle']['progress_percent']==100
+        cycle_id=reports[0]['run_id']
+        cycle=client.get('/api/observatory/cycles/'+cycle_id).json()
+        raw=client.get('/api/agent-cycles/'+cycle_id).json()
+        source={t['agent_id']:t for t in raw['tasks']}
+        tasks={t['agent_id']:t for t in cycle['tasks']}
+        assert tasks['backtest']['dependencies']==source['backtest']['depends_on']
+        comparisons=tasks['backtest']['evidence']['comparisons']
+        assert len(comparisons)==3
+        for actual,recorded in zip(comparisons,source['backtest']['result']['results']):
+            assert actual['pnl']==recorded['final_equity']-recorded['initial_equity']
+            assert actual['trades']==recorded['trade_count']
+        technical={m['label']:m['value'] for m in tasks['technical']['evidence']['metrics']}
+        assert technical['RSI 14']==source['technical']['result']['indicators']['rsi']
+        assert cycle['counts']['Waiting']==1 and cycle['counts']['Completed']==15
+        # Registry pointers originally omitted result/timestamps; resolve full task.
+        technical_agent=next(a for a in state['agents'] if a['id']=='technical')
+        assert technical_agent['task']['finished_at']
+        assert technical_agent['task']['evidence']['has_result']
+        assert not any(k in str(cycle) for k in ('local_model','input_json','news_feed_url'))
+        assert client.get('/api/observatory/cycles/not-a-real-run').status_code==404
+
+
+def test_workbench_projection_does_not_echo_unknown_result_fields():
+    import json
+    from app.observatory import evidence_view
+    evidence=evidence_view({'agent_id':'technical','result':json.dumps({
+        'token':'secret-fixture','candle_count':200,'indicators':{'rsi':57.5,'api_key':'secret-fixture'}})})
+    assert 'secret-fixture' not in str(evidence)
+    assert evidence['metrics']==[{'label':'Nến đóng','value':200},{'label':'RSI 14','value':57.5}]
