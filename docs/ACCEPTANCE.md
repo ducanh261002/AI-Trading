@@ -5,7 +5,7 @@ không là chứng nhận hệ thống giao dịch tiền thật.
 
 ## Đã thực hiện
 
-- Bộ test Python: 43 bài, gồm hồi quy Foundation/Market/Agents và các test
+- Bộ test Python: 47 bài, gồm hồi quy Foundation/Market/Agents và các test
   mới cho indicators, strategy HOLD/warmup, risk rejects, sizing/costs,
   stop-first/next-open/holdout, paper dedup/close/ledger/restart, backup,
   hosted login/cookies/CSRF/rate-limit, Testnet signing/UNKNOWN/reconcile.
@@ -72,3 +72,14 @@ không cần key Binance; Testnet adapter dùng MockTransport khi test.
   chiếu đầy đủ phí/funding; review output trước mọi quyết định vốn.
 - Testnet integration có key riêng và test lifecycle đầy đủ; không mở
   execution chỉ nhờ có chữ “pass” từ mock tests.
+
+## Chế độ quan sát 3D
+
+Bổ sung kiểm thử tự bật nghiên cứu lần đầu sau migration, giữ lựa chọn dừng,
+tạo báo cáo tự động không bấm lệnh và khóa mở vị thế tại API/tool/broker.
+Kiểm tra trình duyệt dùng dữ liệu fixture, không phải kết quả giao dịch thực.
+Chưa thử trực tiếp bản mới trên máy Windows của người dùng.
+
+Chromium: 16 nhãn không chồng nhau, 16 thẻ Agent, hai báo cáo tự tạo,
+bấm bàn mở chi tiết, chuyển 2D/3D thành công. Màn hình 390px không tràn ngang,
+không có lỗi JavaScript. Evidence cục bộ: `artifacts/observer-verification.json`.

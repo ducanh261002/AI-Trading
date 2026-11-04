@@ -30,6 +30,8 @@ class Coordinator:
 
     async def start(self):
         self.store.initialize(default_enabled=bool(self.settings.agent_auto_seconds))
+        if self.settings.observer_mode:
+            self.store.activate_observer_profile()
         preferences = self.store.research_settings()
         self.research_enabled = bool(preferences["enabled"])
         self.research_interval = preferences["interval"]
@@ -66,7 +68,7 @@ class Coordinator:
             raise ValueError("Unsupported symbol or interval")
         candles = self.market.store.read(symbol, interval) if candles is None else candles
         run_id, created = self.store.enqueue(symbol, interval, request_key or str(uuid4()), PLAN,
-                                           analysis_only=analysis_only, candles=candles)
+                                           analysis_only=bool(analysis_only or self.settings.observer_mode), candles=candles)
         return {"run_id": run_id, "created": created}
 
     async def schedule(self):

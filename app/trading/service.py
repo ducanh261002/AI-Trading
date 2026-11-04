@@ -119,7 +119,7 @@ class TradingService:
                 if self.settings.market_enabled and not self.market.snapshot()["connected"] and not self.database.halted():
                     self.database.halt()
                 self.paper.update_positions()
-                if self.settings.paper_auto and not self.database.halted():
+                if self.settings.paper_auto and not self.settings.observer_mode and not self.database.halted():
                     for symbol in self.market.symbols:
                         self.paper.enter(self.proposal(symbol, "5m"))
                 if ticks % 12 == 0:

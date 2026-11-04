@@ -76,6 +76,8 @@ class PaperBroker:
                                 snapshot["connected"] and row.get("fresh", False), self.database.halted())
 
     def enter(self, proposal):
+        if self.settings.observer_mode:
+            return {"sent": False, "reason": "Observer mode: không mở vị thế mới"}
         # Recalculate approval now; never trust an approval from an Agent or LLM.
         review = self.review(proposal)
         if not review["approved"]:

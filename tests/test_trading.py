@@ -86,7 +86,7 @@ def test_backtest_next_open_stop_first_and_holdout(monkeypatch):
 
 
 def test_paper_lifecycle_idempotency_and_backup(tmp_path):
-    settings = Settings(database_path=tmp_path / "db.sqlite3", market_enabled=False, _env_file=None)
+    settings = Settings(database_path=tmp_path / "db.sqlite3", market_enabled=False, observer_mode=False, _env_file=None)
     app = create_app(settings)
     with TestClient(app) as client:
         market = app.state.market
@@ -116,7 +116,7 @@ def test_paper_lifecycle_idempotency_and_backup(tmp_path):
             source.backup(destination)
     with TestClient(create_app(settings)) as client:
         assert client.get("/api/performance").json()["trade_count"] == 1
-    restored = Settings(database_path=tmp_path / "restored.sqlite3", market_enabled=False, _env_file=None)
+    restored = Settings(database_path=tmp_path / "restored.sqlite3", market_enabled=False, observer_mode=False, _env_file=None)
     with TestClient(create_app(restored)) as client:
         assert client.get("/api/performance").json()["trade_count"] == 1
         assert client.get("/api/portfolio").json()["cash"] == snapshot_cash
@@ -124,7 +124,7 @@ def test_paper_lifecycle_idempotency_and_backup(tmp_path):
 
 
 def test_paper_arm_requires_freshness_and_confirmation(tmp_path):
-    with TestClient(create_app(Settings(database_path=tmp_path / "db", market_enabled=False, _env_file=None))) as client:
+    with TestClient(create_app(Settings(database_path=tmp_path / "db", market_enabled=False, observer_mode=False, _env_file=None))) as client:
         assert client.post("/api/paper/arm", json={}).status_code == 422
         assert client.post("/api/paper/arm", json={"confirmation": "ENABLE PAPER ONLY"}).status_code == 409
         assert client.get("/api/portfolio").json()["simulated"] is True

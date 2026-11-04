@@ -33,7 +33,14 @@ class TaskStore:
             run_columns = {row["name"] for row in con.execute("PRAGMA table_info(agent_runs)")}
             if "analysis_only" not in run_columns:
                 con.execute("ALTER TABLE agent_runs ADD COLUMN analysis_only INTEGER NOT NULL DEFAULT 0")
-            con.execute("INSERT OR IGNORE INTO agent_research VALUES(1,?,'5m')", (int(default_enabled),))
+            con.execute("INSERT OR IGNORE INTO agent_research(id,enabled,interval) VALUES(1,?,'5m')", (int(default_enabled),))
+
+    def activate_observer_profile(self):
+        with self.database.connect() as con:
+            columns = {row["name"] for row in con.execute("PRAGMA table_info(agent_research)")}
+            if "observer_profile" not in columns:
+                con.execute("ALTER TABLE agent_research ADD COLUMN observer_profile INTEGER NOT NULL DEFAULT 0")
+            con.execute("UPDATE agent_research SET enabled=1,observer_profile=1 WHERE id=1 AND observer_profile=0")
 
     @staticmethod
     def event(con, task_id, level, message):

@@ -2,12 +2,9 @@
 
 ## Cách sử dụng
 
-Trong dashboard, tìm **Giao việc cho các Agent** ngay trước bảng Thị trường:
-
-1. Chọn khung phân tích (mặc định 5m).
-2. Bấm **Bật CEO tự phân tích** một lần.
-3. Xem báo cáo tự động ngay bên dưới. Không cần chọn/rerun từng chiến lược,
-   chụp JSON, đọc holdout bằng tay hoặc bật quyền PAPER.
+Trang chính là [văn phòng quan sát 3D](OBSERVER_MODE.md), tự bật nghiên cứu
+khi nâng cấp lần đầu. Mở web rồi quan sát; không cần thao tác backtest.
+Bảng điều khiển cũ chuyển tới `/operator`, dành cho dùng nâng cao.
 
 CEO theo dõi các cặp trong cấu hình (mặc định BTCUSDT, ETHUSDT). Khi dữ liệu
 LIVE và có đủ 120 nến đóng, CEO giao công việc cho các vai trò:
@@ -41,9 +38,8 @@ LLM không cấp được quyền giao dịch hoặc thay Risk Manager.
   thực thi hoặc cam kết lợi nhuận.
 
 Kill Switch có thể giữ bật suốt quá trình nghiên cứu. Chu kỳ analysis-only
-không mở cả lệnh paper, ngay cả khi chủ tài khoản đã arm PAPER. Các chức
-năng paper thủ công hoặc cấu hình paper_auto là đường điều khiển riêng,
-không được cấp quyền bởi nút CEO. Bản launcher Windows tắt paper_auto.
+không mở cả lệnh paper, ngay cả khi chủ tài khoản đã arm PAPER. Chế độ quan sát mặc định chặn mở vị thế ở cả API/tool/broker; các điều khiển
+paper chỉ dùng được khi chuyển sang profile operator một cách chủ động.
 
 ## Tự động nhưng có giới hạn rõ ràng
 
@@ -81,7 +77,7 @@ hiện tại chưa có conversational agent tự sinh và thử code chiến lư
 5. Mở `MO_WEBSITE.cmd`, refresh trình duyệt. Nếu launcher báo lockfile thay
    đổi thì chạy `CAI_DAT_WINDOWS.cmd` trước; bản thay đổi này không thêm
    dependency và giữ nguyên lockfile.
-6. Tìm bảng **Giao việc cho các Agent**, bấm **Bật CEO tự phân tích**.
+6. Mở trang chính để quan sát 3D; nghiên cứu tự khởi động.
 
 Migration SQLite bổ sung bảng/cột, không xóa backtest và paper ledger cũ.
 Nên copy thư mục `data` sang chỗ riêng làm backup khi server đã dừng trước

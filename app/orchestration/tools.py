@@ -164,7 +164,7 @@ class Tools:
     async def execution(self, task):
         # There is intentionally no exchange client here. A model response,
         # persisted approval or task payload cannot enable execution.
-        if task.get("analysis_only"):
+        if task.get("analysis_only") or self.settings.observer_mode:
             return completed(sent=False, paper=True, analysis_only=True, exchange_order_sent=False,
                              reason="Research cycle cannot open positions, including paper")
         return completed(**self.trading.paper.enter(self.proposal(task)))

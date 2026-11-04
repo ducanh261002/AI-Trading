@@ -18,6 +18,7 @@ from app.orchestration.manager import Coordinator
 from app.trading.service import TradingService
 from app.trading.strategies import STRATEGIES
 from app.security import Auth
+from app.observatory import snapshot
 
 
 class MarketRequest(BaseModel):
@@ -103,11 +104,15 @@ def create_app(settings: Settings | None = None):
     @app.get("/api/status")
     async def status():
         return {"phase": 7, "mode": settings.mode, "halted": database.halted(), "execution_available": False,
-                "paper_auto": settings.paper_auto, "hosted": settings.hosted,
+                "paper_auto": settings.paper_auto and not settings.observer_mode, "observer_mode": settings.observer_mode, "hosted": settings.hosted,
                 "market_connected": market.snapshot()["connected"], "llm_connected": False,
                 "ollama_enabled": settings.ollama_enabled, "ollama_last_request_ok": coordinator.summary.available,
                 "agents_running": coordinator.running and coordinator.worker is not None and not coordinator.worker.done(),
                 "risk": {name: getattr(settings, name) for name in ("risk_per_trade", "daily_loss_limit", "max_drawdown", "max_positions", "max_exposure", "max_leverage")}}
+
+    @app.get("/api/observatory")
+    async def observatory():
+        return snapshot(coordinator, market, settings)
 
     @app.get("/api/agents")
     async def agents():
@@ -212,6 +217,8 @@ def create_app(settings: Settings | None = None):
 
     @app.post("/api/paper/arm")
     async def arm_paper(body: dict):
+        if settings.observer_mode:
+            raise HTTPException(409, "Chế độ quan sát không mở vị thế")
         if body != {"confirmation": "ENABLE PAPER ONLY"}:
             raise HTTPException(422, "Explicit paper-only confirmation required")
         if not market.snapshot()["connected"]:
@@ -225,6 +232,8 @@ def create_app(settings: Settings | None = None):
 
     @app.post("/api/paper/run")
     async def paper_run(body: MarketRequest):
+        if settings.observer_mode:
+            raise HTTPException(409, "Chế độ quan sát không mở vị thế")
         if body.symbol not in market.symbols:
             raise HTTPException(422, "Unsupported symbol")
         return trading.paper.enter(trading.proposal(body.symbol, body.interval))
@@ -257,7 +266,19 @@ def create_app(settings: Settings | None = None):
 
     @app.get("/", include_in_schema=False)
     def dashboard():
-        return FileResponse(static / "index.html")
+        return FileResponse(static / ("index.html" if settings.observer_mode else "operator.html"))
+
+    @app.get("/operator", include_in_schema=False)
+    def operator_page():
+        return FileResponse(static / "operator.html")
+
+    @app.get("/observer.js", include_in_schema=False)
+    def observer_script():
+        return FileResponse(static / "observer.js", media_type="text/javascript")
+
+    @app.get("/observer.css", include_in_schema=False)
+    def observer_style():
+        return FileResponse(static / "observer.css", media_type="text/css")
 
     @app.get("/dashboard.js", include_in_schema=False)
     def javascript():

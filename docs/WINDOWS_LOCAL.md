@@ -60,7 +60,7 @@ khác để chiếm port. Không mở hai backend dùng chung DB.
 ## Những điều cần biết
 
 Muốn các Agent tự làm việc: xem [CEO tự phân tích](AUTONOMOUS_RESEARCH.md).
-Bật nút trên dashboard; không phải sửa `.env` hay tự chạy ba backtest.
+Trang chính tự mở 3D và giao việc: xem [chế độ quan sát](OBSERVER_MODE.md).
 
 - Máy phải bật, có Internet, không sleep thì hệ thống mới chạy. Tắt máy
   hoặc sleep sẽ dừng xử lý; không hứa chạy 24/7 khi máy đã tắt.
@@ -68,8 +68,7 @@ Bật nút trên dashboard; không phải sửa `.env` hay tự chạy ba backte
   Tài khoản 10.000 USDT trên giao diện là **tiền mô phỏng**.
 - Script ép PAPER/local-only và tắt tự động mở paper entries/lịch Agent ở
   mỗi lần chạy. Nó không sửa `.env`; lịch sử ở `data/` vẫn được giữ.
-- Chạy CEO/backtest thủ công trên UI. Kill Switch bật sau restart; chưa có
-  điều kiện market fresh thì không bật paper hoặc gửi lệnh mới được.
+- Các Agent tự phân tích khi dữ liệu LIVE đủ nến; chế độ quan sát không mở vị thế mới.
 - Binance lỗi 451/blocked là chưa có dữ liệu thật; không dùng dữ liệu giả
   hoặc đổi proxy để bỏ qua. Gửi dòng lỗi để chẩn đoán kết nối hợp lệ.
 - Nếu iGPU chậm, dùng 2D. Ollama mặc định tắt; không cần cài ở bước này.

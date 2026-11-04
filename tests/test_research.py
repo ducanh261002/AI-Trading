@@ -16,7 +16,7 @@ def candles(count=200):
 
 
 def config(tmp_path, **overrides):
-    return Settings(database_path=tmp_path / "research.db", market_enabled=False, _env_file=None, **overrides)
+    return Settings(database_path=tmp_path / "research.db", market_enabled=False, observer_mode=False, _env_file=None, **overrides)
 
 
 def live_fixture(app):

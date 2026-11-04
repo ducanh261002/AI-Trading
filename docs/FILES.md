@@ -78,3 +78,12 @@ docs/FILES.md
 ```
 
 Mã nguồn từng file nằm nguyên vẹn trong ZIP; không có function TODO hoặc pseudocode thay cho module chạy. Phạm vi chưa được chứng nhận được nêu tại ACCEPTANCE.md.
+
+## Chế độ quan sát 3D
+
+- `app/observatory.py`: snapshot nhiệm vụ thực, không trả raw results hay secrets.
+- `app/static/index.html`, `observer.js`, `observer.css`: văn phòng tự cập nhật.
+- `app/static/scene.js`: bàn/nhân vật 3D, nhãn nhiệm vụ, picking và fallback 2D.
+- `app/static/operator.html`: bảng điều khiển cũ dành cho dùng nâng cao.
+- `tests/test_observatory.py`: tự nghiên cứu, migration, giữ trạng thái dừng, khóa mở vị thế.
+- `docs/OBSERVER_MODE.md`: hướng dẫn quan sát và cập nhật Windows.

@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     slippage_rate: float = Field(default=0.0002, ge=0, le=0.01)
     funding_rate: float = Field(default=0.0001, ge=-0.01, le=0.01)
     max_entry_deviation: float = Field(default=0.002, gt=0, le=0.01)
+    observer_mode: bool = True
     paper_auto: bool = False
     strategy: Literal["ema_rsi", "macd_atr", "bollinger_volume", "consensus"] = "consensus"
     news_feed_url: str = ""
